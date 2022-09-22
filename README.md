@@ -1,13 +1,65 @@
 # Ubuntu 20.04 + ROS noetic (WIP)
-@Yanwei
-- Compiled Successfully with OpenCV 4.x
-```bash
-./build_dep_ubuntu20.04.sh
-./build_supports.sh
-# Converting vocabulary to binary
-./tools/bin_vocabulary
-```
-- Still tuning for performance
+
+## Build &  Run
+
+*@NOTE Feel free to follow the building stpes in Ubuntu16.04 in next section below if you have a lower version.*
+
+Create a **new** `ros workspace`, e.g. `catkin_ws`, clone `gf_orb_slam2`
+
+    cd ~/catkin_ws/src && git clone https://github.com/ivalab/gf_orb_slam2.git -b feature/ubuntu20.04
+
+
+as well as the config files
+
+    git clone https://github.com/ivalab/ORB_Data.git
+
+Build 3rdparties.
+
+    cd gf_orb_slam2
+
+1. Modify variables in `export_env_variables.bash`, it defines `${GF_ORB_SLAM2_SDK}` and `${GF_ORB_SLAM2_ROOT}`, where the 3rdparty source and library files will be installed.
+
+2. Run the following script, it will download, compile and install 3rdparty libraries.
+
+    ```
+    ./build_dep_ubuntu20.04.sh
+    ```
+
+3. Build other supports.
+
+    ```
+    ./build_supports.sh
+    ```
+
+Now build the GF-ORB-SLAM2 package
+
+    cd ~/catkin_ws
+    
+    catkin build -j8 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -march=native" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -march=native" -DENABLE_CUDA_IN_OPENCV=False
+
+Convert vocabulary file to binary for fast loading
+
+    ./tools/bin_vocabulary
+
+EuRoC benchmark.
+
+1. Running.
+    ```bash
+    cd batch_scripts/noetic
+
+    python Run_EuRoC_Stereo_nonROS.py
+    ```
+2. Evaluation.
+
+    Please install [evo package](https://github.com/MichaelGrupp/evo) before running the script.
+    ```bash
+    python Evaluate_EuRoC_Stereo.py
+    ```
+3. Collect stats.
+    ```bash
+    python Collect_EuRoC_Stereo.py
+    ```
+
 
 ---
 ![](https://github.com/ivalab/demo_gif/blob/master/office_slam_demo.gif)

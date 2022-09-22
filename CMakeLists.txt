@@ -29,7 +29,7 @@ IF(NOT DEFINED ORB_LIB_TYPE)
 ENDIF()
 
 IF(NOT DEFINED ENABLE_CUDA_IN_OPENCV)
-    SET(ENABLE_CUDA_IN_OPENCV True)
+    SET(ENABLE_CUDA_IN_OPENCV OFF)
 ENDIF()
 message("Enable cuda support: " ${ENABLE_CUDA_IN_OPENCV})
 
@@ -115,53 +115,31 @@ if (NOT DEFINED ENV{GF_ORB_SLAM2_ROOT})
 endif()
 
 # customize opencv dir
-if ($ENV{ROS_DISTRO} STREQUAL "indigo")
-     set( OpenCV_DIR /opt/opencv2/share/OpenCV )
-     find_package(OpenCV 2.4.13 REQUIRED core ocl)
-elseif ($ENV{ROS_DISTRO} STREQUAL "kinetic")
-     set( OpenCV_DIR /opt/opencv3/share/OpenCV )
-     find_package(OpenCV 3.4.1 REQUIRED
-                PATHS /opt/opencv3
-                NO_DEFAULT_PATH)
-elseif ($ENV{ROS_DISTRO} STREQUAL "noetic")
-     find_package(OpenCV 4 REQUIRED)
-endif()
+find_package(OpenCV 4 REQUIRED)
 MESSAGE("OpenCV include dir: " ${OpenCV_INCLUDE_DIRS})
 MESSAGE("OpenCV libs: " ${OpenCV_LIBS})
 
 # customize eigen dir
-# find_package(Eigen3 3.1.0 REQUIRED)
-# set( EIGEN3_INCLUDE_DIR /opt/eigen33/include/eigen3/ )
 set( EIGEN3_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/eigen33/include/eigen3/ )
-# set( EIGEN3_INCLUDE_DIR /usr/include/eigen3 )
 MESSAGE("EIGEN include dir: " ${EIGEN3_INCLUDE_DIR})
-# MESSAGE("EIGEN libs: " ${EIGEN3_LIBS})
 
 # customize pangolin dir
-# set(Pangolin_DIR /opt/Pangolin/lib/cmake/Pangolin/)
-# find_package(Pangolin REQUIRED)
-# set(Pangolin_INCLUDE_DIRS /opt/Pangolin/include/)
-# set(Pangolin_LIBRARIES /opt/Pangolin/lib/libpangolin.so)
 set(Pangolin_INCLUDE_DIRS $ENV{GF_ORB_SLAM2_ROOT}/Pangolin/include/)
 set(Pangolin_LIBRARIES    $ENV{GF_ORB_SLAM2_ROOT}/Pangolin/lib/libpangolin.so)
 MESSAGE("Pangolin include dir: " ${Pangolin_INCLUDE_DIRS})
 
-
 # customize openblas dir
-# set(OpenBLAS_LIBRARIES /opt/OpenBLAS/lib/libopenblas.so)
 set(OpenBLAS_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/OpenBLAS/lib/libopenblas.so)
 MESSAGE("OpenBLAS libs:" ${OpenBLAS_LIBRARIES})
 
 # customize armadillo dir
-# set(ARMADILLO_INCLUDE_DIR /opt/armadillo/include)
-# set(ARMADILLO_LIBRARIES /opt/armadillo/lib/libarmadillo.so)
 set(ARMADILLO_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/armadillo/include)
 set(ARMADILLO_LIBRARIES   $ENV{GF_ORB_SLAM2_ROOT}/armadillo/lib/libarmadillo.so)
 MESSAGE("ARMADILLO libs: " ${ARMADILLO_LIBRARIES})
 
 # customize gtest dir
-set(GTest_INCLUDE_DIR /usr/src/gtest/src)
-set(GTest_LIBRARIES /usr/src/gtest/libgtest.a)
+set(GTest_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/gtest/include)
+set(GTest_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/gtest/lib/libgtest.a)
 MESSAGE("gtest libs: " ${GTest_LIBRARIES})
 
 find_program(CCACHE_FOUND ccache)
@@ -173,19 +151,21 @@ else (CCACHE_FOUND)
     MESSAGE("No ccache detected")
 endif(CCACHE_FOUND)
 
-# GFlags
-set(GFLAGS_INCLUDE_DIR /home/yanwei/slam_ws/output/3rdparty/include)
-set(GFLAGS_LIBRARIES /home/yanwei/slam_ws/output/3rdparty/lib/libgflags.a)
+# find GFlags
+set(GFLAGS_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/gflags/include)
+set(GFLAGS_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/gflags/lib/libgflags.a)
 # find_package(GFlags REQUIRED)
 MESSAGE("gflags include dirs: " ${GFLAGS_INCLUDE_DIR})
 
-find_package(Boost    REQUIRED COMPONENTS thread system filesystem)
+# find boost
+find_package(Boost REQUIRED COMPONENTS thread system filesystem)
 MESSAGE("Boost include dir: " ${Boost_INCLUDE_DIRS})
 MESSAGE("Boost lib: " ${Boost_LIBRARIES})
 
+# include directories
 include_directories(
-${PROJECT_SOURCE_DIR}
-${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/Thirdparty/SLAM++/include
     ${PROJECT_SOURCE_DIR}/Thirdparty/sse2neon/
     ${OpenCV_INCLUDE_DIRS}
@@ -395,6 +375,12 @@ ${catkin_LIBRARIES}
 ${PROJECT_NAME}
 )
 
+# build non-ROS node
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Stereo)
+add_executable(stereo_euroc Examples/Stereo/stereo_euroc.cc)
+target_link_libraries(stereo_euroc
+    ${PROJECT_NAME}
+)
 
 # Build test cases
 

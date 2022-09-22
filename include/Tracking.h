@@ -40,6 +40,7 @@
 #include "Hashing.h"
 #include "ChArUco.h"
 #include "Observability.h"
+#include "MacroDefinitions.h"
 
 #include <set>
 #include <utility>
@@ -80,7 +81,7 @@ using namespace Eigen;
 // with random error.  It is then utilized as pose prediction (replacement 
 // of constant motion model) in tracking thread.
 //
-#define PRED_WITH_ODOM
+// #define PRED_WITH_ODOM
 
 /* --- options of anticipating poses with closed-loop planner  --- */
 //
