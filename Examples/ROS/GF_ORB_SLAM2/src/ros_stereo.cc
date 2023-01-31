@@ -86,6 +86,42 @@ public:
 #ifdef FRAME_WITH_INFO_PUBLISH
     ros::Publisher mpFrameWithInfoPublisher;
 #endif
+
+    // Added by yanwei, save tracking latency
+    std::vector<double> vTimesTrack;
+    std::vector<pair<double, double> > vStampedTimesTrack;
+
+    void saveStats(const std::string& path_traj)
+    {
+        // Tracking time statistics
+        sort(vTimesTrack.begin(),vTimesTrack.end());
+        float totaltime = 0;
+        int proccIm = vTimesTrack.size();
+        for(int ni=0; ni<proccIm; ni++)
+        {
+            totaltime+=vTimesTrack[ni];
+        }
+
+        // save to stats
+        {
+            std::ofstream myfile(path_traj + "_stats.txt");
+            myfile << std::setprecision(6) << -1 << " "
+                << proccIm << " "
+                << totaltime / proccIm << " "
+                << vTimesTrack[proccIm/2] << " "
+                << vTimesTrack.front() << " "
+                << vTimesTrack.back() << " ";
+            myfile.close();
+
+            myfile.open(path_traj + "_Log_Latency.txt");
+            myfile << std::setprecision(20);
+            for (const auto& m : vStampedTimesTrack)
+            {
+                myfile << m.first << " " << m.second << "\n";
+            }
+            myfile.close();
+        }
+    }
     
 };
 
@@ -226,6 +262,9 @@ int main(int argc, char **argv)
     // ros::spin();
 
     cout << "ros_stereo: done with spin!" << endl;
+
+    // save stats
+    igb.saveStats(std::string(argv[8])); 
 
     // Save camera trajectory
     SLAM.SaveKeyFrameTrajectoryTUM( std::string(argv[8]) + "_KeyFrameTrajectory.txt" );
@@ -380,13 +419,19 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 	pose = mpSLAM->TrackStereo(cv_ptrLeft->image,cv_ptrRight->image,cv_ptrLeft->header.stamp.toSec());
     }
 
-    if (pose.empty())
-	return;
-
-double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
+    double latency_total = ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec();
+    {
+        const double track_latency = latency_total - latency_trans;
+        vTimesTrack.emplace_back(track_latency);
+        vStampedTimesTrack.emplace_back(cv_ptrLeft->header.stamp.toSec(), track_latency);
+    }
 // ROS_INFO("ORB-SLAM Tracking Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
 // ROS_INFO("Image Transmision Latency: %.03f sec; Total Tracking Latency: %.03f sec", latency_trans, latency_total);
-ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
+    if (pose.empty())
+    {
+        return;
+    }
+    ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
 
 /*
     // std::cout << "broadcast pose!" << std::endl;

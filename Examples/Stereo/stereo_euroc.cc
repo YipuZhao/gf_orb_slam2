@@ -215,7 +215,7 @@ int main(int argc, char **argv)
                << vTimesTrack.back() << " ";
         myfile.close();
 
-        myfile.open(path_traj + "_timeLog.txt");
+        myfile.open(path_traj + "_Log_Latency.txt");
         myfile << std::setprecision(20);
         for (const auto& m : vStampedTimesTrack)
         {

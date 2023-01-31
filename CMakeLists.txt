@@ -42,8 +42,8 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto")
 ELSE()
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -march=native ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -march=native")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3")
 ENDIF()
 
 # Add CUDA support

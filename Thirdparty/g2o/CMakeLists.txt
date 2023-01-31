@@ -66,8 +66,8 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto ") 
     SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto") 
 ELSE()
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native ") 
-    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3 -march=native") 
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3")
 ENDIF()
 
 
