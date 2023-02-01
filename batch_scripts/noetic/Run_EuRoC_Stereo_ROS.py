@@ -17,7 +17,7 @@ import subprocess
 import time
 import signal
 
-DATA_ROOT = "/mnt/DATA/Datasets/EuRoC"
+DATA_ROOT = "/mnt/DATA/Datasets/EuRoC/BagFiles"
 SeqNameList = [
     "MH_01_easy",
     "MH_02_easy",
@@ -32,11 +32,10 @@ SeqNameList = [
     "V2_03_difficult",
 ]
 
-Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/Reproducing/GF")
+Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG/")
 
-# Number_GF_List = [80]
-# [400, 600, 800, 1000, 1500, 2000]; #
-Number_GF_List = [400, 600]
+# Number_GF_List = [400, 800, 1000, 1500]
+Number_GF_List = [300, 400, 500]
 NumRepeating = 5  # 10 # 20 #  5 #
 SpeedPool = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
 SleepTime = 1  # 10 # 25
@@ -93,44 +92,48 @@ for speed in SpeedPool:
                 file_dummy_map = file_traj + "_dummy_map.txt"
                 file_log = "> " + file_traj + "_logging.txt" if EnableLogging else ""
                 file_data = os.path.join(DATA_ROOT, SeqName)
+                file_rosbag = os.path.join(DATA_ROOT, SeqName + ".bag")
                 file_timestamp = os.path.join(file_data, "times.txt")
                 file_node = os.path.join(GF_ORB_SLAM2_PATH, "Examples/Stereo/stereo_euroc")
 
                 # compose cmd
-                cmd_slam = (
-                    file_node
-                    + " "
+                cmd_slam = str(
+                    "rosrun gf_orb_slam2 Stereo "
                     + file_vocab
                     + " "
                     + file_setting
                     + " "
-                    + str(num_gf)
+                    + str(int(num_gf))
                     + " "
-                    + "0"
+                    + "false"
                     + " "
                     + str(EnableViewer)
                     + " "
-                    + file_data
-                    + " "
-                    + file_timestamp
+                    + "/cam0/image_raw /cam1/image_raw"
                     + " "
                     + file_traj
                     + " "
                     + file_dummy_map
                     + " "
-                    + str(speed)
-                    + " "
                     + file_log
                 )
+
+                cmd_rosbag = "rosbag play " + file_rosbag + " -r " + str(speed)  # + ' -u 20'
 
                 print(bcolors.WARNING + "cmd_slam: \n" + cmd_slam + bcolors.ENDC)
 
                 print(bcolors.OKGREEN + "Launching SLAM" + bcolors.ENDC)
-                subprocess.call(cmd_slam, shell=True)
+                subprocess.Popen(cmd_slam, shell=True)
 
                 print(bcolors.OKGREEN + "Sleeping for a few secs to wait for voc loading" + bcolors.ENDC)
-                time.sleep(SleepTime)
+                time.sleep(SleepTime * 3)
 
-                print(bcolors.OKGREEN + "Finished" + bcolors.ENDC)
+                print(bcolors.OKGREEN + "Launching rosbag" + bcolors.ENDC)
+                proc_bag = subprocess.call(cmd_rosbag, shell=True)
+
+                print(bcolors.OKGREEN + "Finished rosbag playback, kill the process" + bcolors.ENDC)
+                subprocess.call("rosnode kill Stereo", shell=True)
                 time.sleep(SleepTime)
-                subprocess.call("pkill stereo_euroc", shell=True)
+                # print bcolors.OKGREEN + "Saving the map to file system" + bcolors.ENDC
+                # time.sleep(15)
+                subprocess.call("pkill Stereo", shell=True)

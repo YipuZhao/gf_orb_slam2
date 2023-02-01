@@ -64,6 +64,15 @@
 // !!! YOU NEED NOT WORRY ABOUT THE PARAMETERS DEFINED BELOW !!!              //
 ////////////////////////////////////////////////////////////////////////////////
 //############################## RunningMode. ################################//
+
+//-------------- Frame.h -----------------//
+// NOTE
+// as an alternative of stereo pipeline, undistort the keypoints and perform stereo matching
+// no image recitification is required, nor does the subpixel stereo refine is used
+#define ALTER_STEREO_MATCHING
+// only uncomment it for stereo pipeline
+#define DELAYED_STEREO_MATCHING
+
 #ifdef GF_GG_MODE
 
     //--------------- Optimizer.h --------------//
@@ -93,13 +102,14 @@
 
 #elif defined ORB2_BASELINE
 
-    // @TODO (yanwei) This mode seems NOT working as expected. Better to use 
-    // origin ORB2 code for baseline benchmark.
-
     //-------------- Tracking.h -----------------//
 
     // options of baseline methods
     #define ORB_SLAM_BASELINE
+
+    //-------------- Frame.h -----------------//
+    #undef ALTER_STEREO_MATCHING
+    #undef DELAYED_STEREO_MATCHING
 
 #endif
 

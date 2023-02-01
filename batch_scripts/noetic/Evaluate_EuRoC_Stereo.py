@@ -34,15 +34,19 @@ SeqNameList = [
     "V2_02_medium",
     "V2_03_difficult",
 ]
-Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG")
-NumRepeating = 1
-SleepTime = 1  # 10 # 25 # second
-Number_GF_List = [260]
+Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG/")
+Number_GF_List = [800]
+NumRepeating = 5
 SpeedPool = [1.0]  # , 2.0, 3.0] #, 4.0, 5.0]  # x
+SleepTime = 1  # 10 # 25 # second
 ConfigPath = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_Data")
 GT_ROOT = os.path.join(ConfigPath, "EuRoC_POSE_GT")
 SENSOR = "cam0"
 SaveResult = 1
+ResultFiles = [
+    "AllFrameTrajectory",
+    "KeyFrameTrajectory",
+]
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -104,13 +108,14 @@ for speed in SpeedPool:
                     print(f"missing gt file: {file_gt}")
                     exit(-1)
 
-                # select result file with the maximum frames
-                file_est = os.path.join(Experiment_dir, SeqName + "_AllFrameTrajectory.txt")
-                if not os.path.exists(file_est):
-                    print(f"missing est file {file_est}")
-                    continue
-                # evaluate
-                call_evaluation(file_eval, file_gt, file_est, options, SaveResult)
+                # evaluate each result file
+                for result_filename in ResultFiles:
+                    file_est = os.path.join(Experiment_dir, SeqName + "_" + result_filename + ".txt")
+                    if not os.path.exists(file_est):
+                        print(f"missing est file {file_est}")
+                        continue
+                    # evaluate
+                    call_evaluation(file_eval, file_gt, file_est, options, SaveResult)
 
                 print(bcolors.OKGREEN + "Finished" + bcolors.ENDC)
                 time.sleep(SleepTime)

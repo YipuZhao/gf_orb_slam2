@@ -1,8 +1,8 @@
-# Ubuntu 20.04 + ROS noetic (WIP)
+# Ubuntu 20.04 + ROS noetic
 
 ## Build &  Run
 
-*@NOTE Feel free to follow the building stpes in Ubuntu16.04 in next section below if you have a lower version.*
+*@NOTE Feel free to follow the building stpes of Ubuntu16.04 below if you have a lower version.*
 
 Create a **new** `ros workspace`, e.g. `catkin_ws`, clone `gf_orb_slam2`
 
@@ -43,21 +43,35 @@ Convert vocabulary file to binary for fast loading
 
 EuRoC benchmark.
 
+[Link to Dataset (rosbags)](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
+
 1. Running.
     ```bash
     cd batch_scripts/noetic
 
-    python Run_EuRoC_Stereo_nonROS.py
+    # remember to configure your path
+
+    python Run_EuRoC_Stereo_ROS.py
     ```
 2. Evaluation.
 
-    Please install [evo package](https://github.com/MichaelGrupp/evo) before running the script.
+    Please install [evo package](https://github.com/MichaelGrupp/evo) before running the script. Feel free to use conda environment.
     ```bash
+    # remember to configure your path
+
     python Evaluate_EuRoC_Stereo.py
     ```
 3. Collect stats.
     ```bash
+    # remember to configure your path
+    
     python Collect_EuRoC_Stereo.py
+
+    # Specially, two RMSE files will be generated: 
+
+    # 1) xxx.txt, with (num_Seq * num_SpeedMode) rows, each row is (Round1_RMSE, Round2_RMSE, xxx, RoundN_RMSE, mean_RMSE, median_RMSE, mean_latency, median_latency)
+    
+    # 2) xxx_vis.txt, with (num_SpeedMode) rows, each row is: (Seq1_RMSE, Seq2_RMSE, xxx, SeqM_RMSE, mean_RMSE, seq_completeness, mean_latency, median_latency)
     ```
 
 

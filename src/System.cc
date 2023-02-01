@@ -149,7 +149,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 #elif defined GF_CV_MODE
     std::cout << "System: GF+CV mode enabled!" << std::endl;
 #elif defined GF_GG_MODE
-    std::cout << "System: GF+CV mode enabled!" << std::endl;
+    std::cout << "System: GF+GG mode enabled!" << std::endl;
 #else
     std::cout << "System: Unknown mode enabled! Be caution." << std::endl;
 #endif
