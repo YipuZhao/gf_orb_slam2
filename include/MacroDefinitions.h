@@ -48,18 +48,6 @@
 
 // #define PRED_WITH_ODOM
 
-/* --- options of anticipating poses with closed-loop planner  --- */
-//
-// NOTE
-// For closed-loop navigation application ONLY
-// By ENABLE_PLANNER_PREDICTION, please make sure the the trajectory state
-// predictor package is included in your catkin workspace:
-// https://github.gatech.edu/ivabots/trajectory_state_predictor
-// Otherwise, you might write your own predictor by grabbing output from the
-// controller
-
-// #define ENABLE_PLANNER_PREDICTION
-
 ////////////////////////////////////////////////////////////////////////////////
 // !!! YOU NEED NOT WORRY ABOUT THE PARAMETERS DEFINED BELOW !!!              //
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +99,28 @@
     #undef ALTER_STEREO_MATCHING
     #undef DELAYED_STEREO_MATCHING
 
+#endif
+
+#ifdef ENABLE_CLOSED_LOOP
+
+    //-------------- Tracking.h -----------------//
+    #define SPARSE_KEYFRAME_COND
+
+    #ifdef GF_GG_MODE
+        //-------------- Tracking.h -----------------//
+        /* --- options of anticipating poses with closed-loop planner  --- */
+        //
+        // NOTE
+        // For closed-loop navigation application ONLY
+        // By ENABLE_PLANNER_PREDICTION, please make sure the the trajectory state
+        // predictor package is included in your catkin workspace:
+        // https://github.gatech.edu/ivabots/trajectory_state_predictor
+        // Otherwise, you might write your own predictor by grabbing output from the
+        // controller
+
+        // @TODO (yanwei) it is a bit unstable when turning this macro on
+        // #define ENABLE_PLANNER_PREDICTION
+    #endif
 #endif
 
 #endif  // GF_ORB_SLAM2_MACRO_DEFINITIONS_H_

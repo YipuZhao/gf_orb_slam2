@@ -1,6 +1,6 @@
 # Ubuntu 20.04 + ROS noetic
 
-## Build &  Run
+## Build & Run
 
 *@NOTE Feel free to follow the building stpes of Ubuntu16.04 below if you have a lower version.*
 
@@ -34,23 +34,29 @@ Build 3rdparties.
 Now build the GF-ORB-SLAM2 package
 
     cd ~/catkin_ws
-    
+
     catkin build -j8 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" -DCMAKE_CXX_STANDARD=14 -DENABLE_CUDA_IN_OPENCV=False
 
 Convert vocabulary file to binary for fast loading
 
     ./tools/bin_vocabulary
 
-EuRoC benchmark.
+### EuRoC benchmark.
 
 [Link to Dataset (rosbags)](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
 
 1. Running.
     ```bash
-    cd batch_scripts/noetic
+    # start roscore in 1st terminal
+    roscore
+
+    # !!! in 2nd terminal !!!
+    # export ROS environment
+    cd ~/catkin_ws
+    source devel/setup.bash
 
     # remember to configure your path
-
+    cd batch_scripts/noetic
     python Run_EuRoC_Stereo_ROS.py
     ```
 2. Evaluation.
@@ -59,7 +65,7 @@ EuRoC benchmark.
     ```bash
     # remember to configure your path
 
-    python Evaluate_EuRoC_Stereo.py
+    python Evaluate_EuRoC_Stereo.py # will call evo library
     ```
 3. Collect stats.
     ```bash
@@ -74,6 +80,15 @@ EuRoC benchmark.
     # 2) xxx_vis.txt, with (num_SpeedMode) rows, each row is: (Seq1_RMSE, Seq2_RMSE, xxx, SeqM_RMSE, mean_RMSE, seq_completeness, mean_latency, median_latency)
     ```
 
+### ClosedLoop Benchmark.
+
+To run GF-ORB-SLAM2 on closed-loop navigation tasks, e.g., as the state estimator of [gazebo_turtlebot_simulator](https://github.com/ivalab/gazebo_turtlebot_simulator/tree/feature/ubuntu20.04), make sure to enable the compiling option `-DENABLE_CLOSED_LOOP=ON`,
+
+    cd ~/catkin_ws
+
+    catkin build -j8 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" -DCMAKE_CXX_STANDARD=14 -DENABLE_CUDA_IN_OPENCV=False -DENABLE_CLOSED_LOOP=ON
+
+and refer to closed-loop evaluation scripts at [gazebo_turtlebot_simulator/script_ros_noetic](https://github.com/ivalab/gazebo_turtlebot_simulator/tree/feature/ubuntu20.04/script_ros_noetic) on how to config the evaluation.
 
 ---
 ![](https://github.com/ivalab/demo_gif/blob/master/office_slam_demo.gif)

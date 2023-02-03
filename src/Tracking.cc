@@ -302,7 +302,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     // disturbed gt pose or planner fails to predict new camera pose,
     // see @line1873 for code detail.
 #else
-    std::cout << "Tracking: constant velocity motion model is used!" << std::endl;
+    std::cout << "Tracking: constant velocity motion model is used in tracking!" << std::endl;
 #endif
 
 #ifdef ENABLE_PLANNER_PREDICTION

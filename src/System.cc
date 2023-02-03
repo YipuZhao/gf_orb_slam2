@@ -153,6 +153,9 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 #else
     std::cout << "System: Unknown mode enabled! Be caution." << std::endl;
 #endif
+#ifdef ENABLE_CLOSED_LOOP
+    std::cout << "System: Closed-Loop mode enabled!" << std::endl;
+#endif
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)

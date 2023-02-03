@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(gf_orb_slam2)
 
+option(ENABLE_CLOSED_LOOP "Build Closed-Loop" OFF)
+
 find_package(catkin REQUIRED COMPONENTS
     rospy
     roscpp
@@ -15,6 +17,24 @@ find_package(catkin REQUIRED COMPONENTS
     # for closed-loop evaluation of Good Graph only
     # trajectory_state_predictor
 )
+
+if(ENABLE_CLOSED_LOOP)
+    add_definitions(-DENABLE_CLOSED_LOOP)
+    find_package(catkin REQUIRED COMPONENTS
+        rospy
+        roscpp
+        sensor_msgs
+        cv_bridge
+        image_transport
+        tf
+        tf2
+        tf2_geometry_msgs
+        tf2_ros
+        geometry_msgs
+        # for closed-loop evaluation of Good Graph only
+        trajectory_state_predictor
+    )
+endif()
 
 message("ROS version = " $ENV{ROS_DISTRO})
 

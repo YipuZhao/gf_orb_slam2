@@ -369,6 +369,15 @@ void ImageGrabber::GrabPath(const nav_msgs::Path::ConstPtr& msg) {
 
 void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight)
 {
+#ifdef ENABLE_CLOSED_LOOP
+    // @NOTE (yanwei) throw the first few garbage images from gazebo
+    static size_t skip_imgs = 0;
+    if (skip_imgs < 10)
+    {
+        ++skip_imgs;
+        return;
+    }
+#endif
 
 double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
 // ROS_INFO("ORB-SLAM Initial Latency: %.03f sec", ros::Time::now().toSec() - msgLeft->header.stamp.toSec());
