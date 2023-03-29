@@ -40,6 +40,7 @@
 #include "Hashing.h"
 #include "ChArUco.h"
 #include "Observability.h"
+#include "MacroDefinitions.h"
 
 #include <set>
 #include <utility>
@@ -52,6 +53,8 @@ using namespace Eigen;
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/imgcodecs/legacy/constants_c.h>
+#include <opencv2/imgproc/types_c.h>
 // #include <opencv2/xphoto.hpp>
 
 #include <mutex>
@@ -78,7 +81,7 @@ using namespace Eigen;
 // with random error.  It is then utilized as pose prediction (replacement 
 // of constant motion model) in tracking thread.
 //
-#define PRED_WITH_ODOM
+// #define PRED_WITH_ODOM
 
 /* --- options of anticipating poses with closed-loop planner  --- */
 //
@@ -89,7 +92,7 @@ using namespace Eigen;
 // https://github.gatech.edu/ivabots/trajectory_state_predictor
 // Otherwise, you might write your own predictor by grabbing output from the controller
 //
-#define ENABLE_PLANNER_PREDICTION
+// #define ENABLE_PLANNER_PREDICTION
 
 #ifdef ENABLE_PLANNER_PREDICTION
   #include <trajectory_state_predictor/trajectory_state_predictor.h>

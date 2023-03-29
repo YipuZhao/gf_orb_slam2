@@ -38,6 +38,15 @@ LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
     mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
     mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true)
 {
+#ifdef ENABLE_GOOD_GRAPH
+    std::cout << "LocalMapping: good graph enabled. " << std::endl;
+#elif defined ENABLE_SLIDING_WINDOW_FILTER
+    std::cout << "LocalMapping: sliding window filter enabled! " << std::endl;
+#elif defined ENABLE_COVIS_GRAPH
+    std::cout << "LocalMapping: covisible graph enabled! " << std::endl;
+#else
+    std::cout << "LocalMapping: default ORB2 in local BA enabled! " << std::endl;
+#endif
 #ifdef ENABLE_ANTICIPATION_IN_BUDGET
     //    mKFNumMat.Zero();
     //    mBudgetMat.Zero();
@@ -81,6 +90,9 @@ LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
     //
     mParam.match_ratio_log.clear();
     mParam.match_ratio_idx = 0;
+    std::cout << "LocalMapping: graph anticipation enabled! " << std::endl;
+#else
+    std::cout << "LocalMapping: graph anticipation disabled! " << std::endl;
 #endif
     //
     mvBATimeLog.clear();

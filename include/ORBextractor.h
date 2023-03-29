@@ -23,7 +23,9 @@
 
 #include <vector>
 #include <list>
-#include <opencv/cv.h>
+// #include <opencv/cv.h>
+#include <opencv2/imgcodecs/legacy/constants_c.h>
+#include <unistd.h>
 
 #if !defined(__SSE3__) && !defined(__SSE2__) && !defined(__SSE1__)
     #include "SSE2NEON.h"

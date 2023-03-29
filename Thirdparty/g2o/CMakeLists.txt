@@ -14,7 +14,7 @@ ENDIF()
 MESSAGE(STATUS "BUILD TYPE:" ${CMAKE_BUILD_TYPE})
 
 IF(NOT G2O_LIB_TYPE)
-  SET(G2O_LIB_TYPE "STATIC") # "SHARED"
+  SET(G2O_LIB_TYPE "SHARED") # "STATIC"
 ENDIF(NOT G2O_LIB_TYPE)
 
 # There seems to be an issue with MSVC8
@@ -66,8 +66,8 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto ") 
     SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto") 
 ELSE()
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native ") 
-    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3 -march=native") 
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+    SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}     -O3")
 ENDIF()
 
 
@@ -81,7 +81,11 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${g2o_C_FLAGS}")
 
 # Find Eigen3
 # SET( G2O_EIGEN3_INCLUDE /usr/include/eigen3 )
-SET( G2O_EIGEN3_INCLUDE /opt/eigen33/include/eigen3/ )
+# SET( G2O_EIGEN3_INCLUDE /opt/eigen33/include/eigen3/ )
+if (NOT DEFINED ENV{GF_ORB_SLAM2_ROOT})
+  message(FATAL_ERROR "env variable: GF_ORB_SLAM2_ROOT is NOT defined, please source export_env_variables.bash")
+endif()
+SET( G2O_EIGEN3_INCLUDE $ENV{GF_ORB_SLAM2_ROOT}/eigen33/include/eigen3/ )
 SET(EIGEN3_INCLUDE_DIR ${G2O_EIGEN3_INCLUDE})
 FIND_PACKAGE(Eigen3 3.3.0 REQUIRED)
 IF(EIGEN3_FOUND)

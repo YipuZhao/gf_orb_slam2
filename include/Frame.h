@@ -29,15 +29,17 @@
 #include "ORBVocabulary.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
+#include "MacroDefinitions.h"
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgcodecs/legacy/constants_c.h>
 
-// NOTE
-// as an alternative of stereo pipeline, undistort the keypoints and perform stereo matching
-// no image recitification is required, nor does the subpixel stereo refine is used
-#define ALTER_STEREO_MATCHING
-// only uncomment it for stereo pipeline
-#define DELAYED_STEREO_MATCHING
+// // NOTE
+// // as an alternative of stereo pipeline, undistort the keypoints and perform stereo matching
+// // no image recitification is required, nor does the subpixel stereo refine is used
+// #define ALTER_STEREO_MATCHING
+// // only uncomment it for stereo pipeline
+// #define DELAYED_STEREO_MATCHING
 
 // For fisheye collected sequences such as TUM VI & MYNT
 // #define USE_FISHEYE_DISTORTION
@@ -51,7 +53,7 @@
 
 
 // For anticipation in good graph
-#define ENABLE_ANTICIPATION_IN_GRAPH
+// #define ENABLE_ANTICIPATION_IN_GRAPH
 
 
 #ifdef ENABLE_ANTICIPATION_IN_GRAPH

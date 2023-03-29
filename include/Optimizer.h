@@ -27,6 +27,7 @@
 #include "LoopClosing.h"
 #include "Frame.h"
 #include "Hashing.h"
+#include "MacroDefinitions.h"
 
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
@@ -34,7 +35,7 @@
 //#define DEBUG_VERBOSE
 
 // good graph switch macro
-#define ENABLE_GOOD_GRAPH
+// #define ENABLE_GOOD_GRAPH
 // reference methods to compare against good graph
 // #define ENABLE_SLIDING_WINDOW_FILTER
 // #define ENABLE_COVIS_GRAPH

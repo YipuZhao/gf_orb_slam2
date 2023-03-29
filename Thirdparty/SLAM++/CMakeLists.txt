@@ -524,10 +524,18 @@ ELSE(UNIX)
 	ENDIF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 ENDIF(UNIX)
 
+# check environment first 
+if (NOT DEFINED ENV{GF_ORB_SLAM2_ROOT})
+    message(FATAL_ERROR "env variable: $ENV{GF_ORB_SLAM2_ROOT} is NOT defined, please run build_dep_ubuntu20.04 first")
+endif()
 
 # customize armadillo dir
-set(ARMADILLO_INCLUDE_DIR /opt/armadillo/include)
-set(ARMADILLO_LIBRARIES /opt/armadillo/lib/libarmadillo.so)
+set(ARMADILLO_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/armadillo/include)
+set(ARMADILLO_LIBRARIES   $ENV{GF_ORB_SLAM2_ROOT}/armadillo/lib/libarmadillo.so)
+
+# customize armadillo dir
+# set(ARMADILLO_INCLUDE_DIR /opt/armadillo/include)
+# set(ARMADILLO_LIBRARIES /opt/armadillo/lib/libarmadillo.so)
 MESSAGE("ARMADILLO libs: " ${ARMADILLO_LIBRARIES})
 
 
@@ -567,7 +575,8 @@ IF(SLAM_P_P_EIGEN33)
       ${ARMADILLO_INCLUDE_DIR}
 	  ${CUDA_INCLUDE_IFENABLED}
 	  ${PROJECT_SOURCE_DIR}/include/
-      /opt/eigen33/include/eigen3/
+      $ENV{GF_ORB_SLAM2_ROOT}/eigen33/include/eigen3/
+    #   /opt/eigen33/include/eigen3/
 #	  ${PROJECT_SOURCE_DIR}/include/eigen33/
 #	  ${PROJECT_SOURCE_DIR}/external/Ceres/include/
 #	  ${PROJECT_SOURCE_DIR}/external/Ceres/internal/

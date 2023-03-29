@@ -1,3 +1,96 @@
+# Ubuntu 20.04 + ROS noetic
+
+## Build & Run
+
+*@NOTE Feel free to follow the building stpes of Ubuntu16.04 below if you have a lower version.*
+
+Create a **new** `ros workspace`, e.g. `catkin_ws`, clone `gf_orb_slam2`
+
+    cd ~/catkin_ws/src && git clone https://github.com/ivalab/gf_orb_slam2.git -b feature/ubuntu20.04
+
+
+as well as the config files
+
+    git clone https://github.com/ivalab/ORB_Data.git
+
+Build 3rdparties.
+
+    cd gf_orb_slam2
+
+1. Modify variables in `export_env_variables.bash`, it defines `${GF_ORB_SLAM2_SDK}` and `${GF_ORB_SLAM2_ROOT}`, where the 3rdparty source and library files will be installed.
+
+2. Run the following script, it will download, compile and install 3rdparty libraries.
+
+    ```
+    ./build_dep_ubuntu20.04.sh
+    ```
+
+3. Build other supports.
+
+    ```
+    ./build_supports.sh
+    ```
+
+Now build the GF-ORB-SLAM2 package
+
+    cd ~/catkin_ws
+
+    catkin build -j8 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" -DCMAKE_CXX_STANDARD=14 -DENABLE_CUDA_IN_OPENCV=False
+
+Convert vocabulary file to binary for fast loading
+
+    ./tools/bin_vocabulary
+
+### EuRoC benchmark.
+
+[Link to Dataset (rosbags)](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
+
+1. Running.
+    ```bash
+    # start roscore in 1st terminal
+    roscore
+
+    # !!! in 2nd terminal !!!
+    # export ROS environment
+    cd ~/catkin_ws
+    source devel/setup.bash
+
+    # remember to configure your path
+    cd batch_scripts/noetic
+    python Run_EuRoC_Stereo_ROS.py
+    ```
+2. Evaluation.
+
+    Please install [evo package](https://github.com/MichaelGrupp/evo) before running the script. Feel free to use conda environment.
+    ```bash
+    # remember to configure your path
+
+    python Evaluate_EuRoC_Stereo.py # will call evo library
+    ```
+3. Collect stats.
+    ```bash
+    # remember to configure your path
+    
+    python Collect_EuRoC_Stereo.py
+
+    # Specially, two RMSE files will be generated: 
+
+    # 1) xxx.txt, with (num_Seq * num_SpeedMode) rows, each row is (Round1_RMSE, Round2_RMSE, xxx, RoundN_RMSE, mean_RMSE, median_RMSE, mean_latency, median_latency)
+    
+    # 2) xxx_vis.txt, with (num_SpeedMode) rows, each row is: (Seq1_RMSE, Seq2_RMSE, xxx, SeqM_RMSE, mean_RMSE, seq_completeness, mean_latency, median_latency)
+    ```
+
+### ClosedLoop Benchmark.
+
+To run GF-ORB-SLAM2 on closed-loop navigation tasks, e.g., as the state estimator of [gazebo_turtlebot_simulator](https://github.com/ivalab/gazebo_turtlebot_simulator/tree/feature/ubuntu20.04), make sure to enable the compiling option `-DENABLE_CLOSED_LOOP=ON`,
+
+    cd ~/catkin_ws
+
+    catkin build -j8 -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG" -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG" -DCMAKE_CXX_STANDARD=14 -DENABLE_CUDA_IN_OPENCV=False -DENABLE_CLOSED_LOOP=ON
+
+and refer to closed-loop evaluation scripts at [gazebo_turtlebot_simulator/script_ros_noetic](https://github.com/ivalab/gazebo_turtlebot_simulator/tree/feature/ubuntu20.04/script_ros_noetic) on how to config the evaluation.
+
+---
 ![](https://github.com/ivalab/demo_gif/blob/master/office_slam_demo.gif)
 
 # A cost-efficient, heavily-modified ORB-SLAM2 (tested on Ubuntu 16.04 + ROS Kinetic)

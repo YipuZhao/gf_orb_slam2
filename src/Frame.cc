@@ -1678,9 +1678,9 @@ void Frame::plotStereoDetection(const cv::Mat &imLeft, const cv::Mat &imRight,
     imLeft.copyTo( img_l_aux2 );
     imRight.copyTo( img_l_aux1 );
     if( img_l_aux1.channels() == 1 )
-        cv::cvtColor(img_l_aux1, img_l_aux1, CV_GRAY2BGR);
+        cv::cvtColor(img_l_aux1, img_l_aux1, cv::COLOR_GRAY2BGR);
     if( img_l_aux2.channels() == 1 )
-        cv::cvtColor(img_l_aux2, img_l_aux2, CV_GRAY2BGR);
+        cv::cvtColor(img_l_aux2, img_l_aux2, cv::COLOR_GRAY2BGR);
 
     assert(mvKeys.size() == mvKeysRight.size());
 
@@ -1733,9 +1733,9 @@ void Frame::plotStereoMatching(const cv::Mat &imLeft, const cv::Mat &imRight,
     imLeft.copyTo( img_l_aux2 );
     imRight.copyTo( img_l_aux1 );
     if( img_l_aux1.channels() == 1 )
-        cv::cvtColor(img_l_aux1, img_l_aux1, CV_GRAY2BGR);
+        cv::cvtColor(img_l_aux1, img_l_aux1, cv::COLOR_GRAY2BGR);
     if( img_l_aux2.channels() == 1 )
-        cv::cvtColor(img_l_aux2, img_l_aux2, CV_GRAY2BGR);
+        cv::cvtColor(img_l_aux2, img_l_aux2, cv::COLOR_GRAY2BGR);
 
     assert(mvKeys.size() == mvKeysRight.size());
 

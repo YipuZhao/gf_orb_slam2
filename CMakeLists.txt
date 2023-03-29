@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(gf_orb_slam2)
 
+option(ENABLE_CLOSED_LOOP "Build Closed-Loop" ON)
+
 find_package(catkin REQUIRED COMPONENTS
     rospy
     roscpp
@@ -18,6 +20,26 @@ find_package(catkin REQUIRED COMPONENTS
     sparse_stereo_msgs
 )
 
+if(ENABLE_CLOSED_LOOP)
+    add_definitions(-DENABLE_CLOSED_LOOP)
+    find_package(catkin REQUIRED COMPONENTS
+        rospy
+        roscpp
+        sensor_msgs
+        cv_bridge
+        image_transport
+        tf
+        tf2
+        tf2_geometry_msgs
+        tf2_ros
+        geometry_msgs
+        # for closed-loop evaluation of Good Graph only
+        trajectory_state_predictor
+        # for sparse features
+        sparse_stereo_msgs
+    )
+endif()
+
 message("ROS version = " $ENV{ROS_DISTRO})
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -33,10 +55,11 @@ ENDIF()
 SET(ENABLE_CUDA_IN_OPENCV False)
 
 IF(NOT DEFINED ENABLE_CUDA_IN_OPENCV)
-    SET(ENABLE_CUDA_IN_OPENCV True)
+    SET(ENABLE_CUDA_IN_OPENCV OFF)
 ENDIF()
 message("Enable cuda support: " ${ENABLE_CUDA_IN_OPENCV})
 
+SET(CMAKE_CXX_STANDARD 14)
 
 # Check architecture
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
@@ -46,8 +69,9 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -ffast-math -flto -march=armv8-a+crypto -mcpu=cortex-a57+crypto")
 ELSE()
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -march=native ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -march=native")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -DNDEBUG")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed -pthread -fopenmp -Wall -O3 -DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG")
 ENDIF()
 
 # Add CUDA support
@@ -113,47 +137,39 @@ ENDIF(SLAM_P_P_LINEAR_SOLVER_TYPE)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-# customize opencv dir
-if ($ENV{ROS_DISTRO} STREQUAL "indigo")
-     set( OpenCV_DIR /opt/opencv2/share/OpenCV )
-     find_package(OpenCV 2.4.13 REQUIRED core ocl)
-elseif ($ENV{ROS_DISTRO} STREQUAL "kinetic")
-     find_package(OpenCV REQUIRED)
-#     set( OpenCV_DIR /opt/opencv3/share/OpenCV )
-#     find_package(OpenCV 3.4.1 REQUIRED
-#                PATHS /opt/opencv3
-#                NO_DEFAULT_PATH)
+# check environment first 
+if (NOT DEFINED ENV{GF_ORB_SLAM2_ROOT})
+    message(FATAL_ERROR "env variable: GF_ORB_SLAM2_ROOT is NOT defined, please source export_env_variables.bash")
 endif()
+
+# customize opencv dir
+find_package(OpenCV 4 REQUIRED)
 MESSAGE("OpenCV include dir: " ${OpenCV_INCLUDE_DIRS})
 MESSAGE("OpenCV libs: " ${OpenCV_LIBS})
 
 # customize eigen dir
-# find_package(Eigen3 3.1.0 REQUIRED)
-set( EIGEN3_INCLUDE_DIR /opt/eigen33/include/eigen3/ )
-# set( EIGEN3_INCLUDE_DIR /usr/include/eigen3 )
+set( EIGEN3_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/eigen33/include/eigen3/ )
 MESSAGE("EIGEN include dir: " ${EIGEN3_INCLUDE_DIR})
 # MESSAGE("EIGEN libs: " ${EIGEN3_LIBS})
 
 # customize pangolin dir
-# set(Pangolin_DIR /opt/Pangolin/lib/cmake/Pangolin/)
-# find_package(Pangolin REQUIRED)
-set(Pangolin_INCLUDE_DIRS /opt/Pangolin/include/)
-set(Pangolin_LIBRARIES /opt/Pangolin/lib/libpangolin.so)
+set(Pangolin_INCLUDE_DIRS $ENV{GF_ORB_SLAM2_ROOT}/Pangolin/include/)
+set(Pangolin_LIBRARIES    $ENV{GF_ORB_SLAM2_ROOT}/Pangolin/lib/libpangolin.so)
 MESSAGE("Pangolin include dir: " ${Pangolin_INCLUDE_DIRS})
 
 
 # customize openblas dir
-set(OpenBLAS_LIBRARIES /opt/OpenBLAS/lib/libopenblas.so)
+set(OpenBLAS_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/OpenBLAS/lib/libopenblas.so)
 MESSAGE("OpenBLAS libs:" ${OpenBLAS_LIBRARIES})
 
 # customize armadillo dir
-set(ARMADILLO_INCLUDE_DIR /opt/armadillo/include)
-set(ARMADILLO_LIBRARIES /opt/armadillo/lib/libarmadillo.so)
+set(ARMADILLO_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/armadillo/include)
+set(ARMADILLO_LIBRARIES   $ENV{GF_ORB_SLAM2_ROOT}/armadillo/lib/libarmadillo.so)
 MESSAGE("ARMADILLO libs: " ${ARMADILLO_LIBRARIES})
 
 # customize gtest dir
-set(GTest_INCLUDE_DIR /usr/src/gtest/src)
-set(GTest_LIBRARIES /usr/src/gtest/libgtest.a)
+set(GTest_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/gtest/include)
+set(GTest_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/gtest/lib/libgtest.a)
 MESSAGE("gtest libs: " ${GTest_LIBRARIES})
 
 find_program(CCACHE_FOUND ccache)
@@ -165,17 +181,21 @@ else (CCACHE_FOUND)
     MESSAGE("No ccache detected")
 endif(CCACHE_FOUND)
 
-# GFlags
-find_package(GFlags REQUIRED)
+# find GFlags
+set(GFLAGS_INCLUDE_DIR $ENV{GF_ORB_SLAM2_ROOT}/gflags/include)
+set(GFLAGS_LIBRARIES $ENV{GF_ORB_SLAM2_ROOT}/gflags/lib/libgflags.a)
+# find_package(GFlags REQUIRED)
 MESSAGE("gflags include dirs: " ${GFLAGS_INCLUDE_DIR})
 
-find_package(Boost    REQUIRED COMPONENTS thread system filesystem)
+# find boost
+find_package(Boost REQUIRED COMPONENTS thread system filesystem)
 MESSAGE("Boost include dir: " ${Boost_INCLUDE_DIRS})
 MESSAGE("Boost lib: " ${Boost_LIBRARIES})
 
+# include directories
 include_directories(
-${PROJECT_SOURCE_DIR}
-${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/Thirdparty/SLAM++/include
     ${PROJECT_SOURCE_DIR}/Thirdparty/sse2neon/
     ${OpenCV_INCLUDE_DIRS}
@@ -293,6 +313,7 @@ else()
         GL
         glut
         GLU
+        GLEW
         ${GFLAGS_LIBRARIES}
         ${OpenCV_LIBS}
         # ${EIGEN3_LIBS}
@@ -393,6 +414,12 @@ ${catkin_LIBRARIES}
 ${PROJECT_NAME}
 )
 
+# build non-ROS node
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Stereo)
+add_executable(stereo_euroc Examples/Stereo/stereo_euroc.cc)
+target_link_libraries(stereo_euroc
+    ${PROJECT_NAME}
+)
 
 # Build test cases
 

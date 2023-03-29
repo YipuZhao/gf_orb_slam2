@@ -295,6 +295,20 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     std::cout << "Tracking: relocalization enabled!" << std::endl;
 #endif
 
+#ifdef PRED_WITH_ODOM
+    std::cout << "Tracking: pred with odom enabled!" << std::endl;
+
+    // @TODO (yanwei) even though, constant velocity model is used if
+    // disturbed gt pose or planner fails to predict new camera pose,
+    // see @line1873 for code detail.
+#else
+    std::cout << "Tracking: constant velocity motion model is used in tracking!" << std::endl;
+#endif
+
+#ifdef ENABLE_PLANNER_PREDICTION
+    std::cout << "Tracking: trajectory planner prediction enabled!" << std::endl;
+#endif
+
 #ifdef USE_INFO_MATRIX
     mCurrentInfoMat.set_size(7, 7);
 #elif defined USE_HYBRID_MATRIX

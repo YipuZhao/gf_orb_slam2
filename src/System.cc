@@ -139,6 +139,23 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
     mFrameLossTrack = 0;
 
+
+#ifdef ORB2_BASELINE
+    std::cout << "System: ORB2 baseline mode enabled!" << std::endl;
+#elif defined GF_MODE
+    std::cout << "System: GF mode enabled!" << std::endl;
+#elif defined GF_SW_MODE
+    std::cout << "System: GF+SW mode enabled!" << std::endl;
+#elif defined GF_CV_MODE
+    std::cout << "System: GF+CV mode enabled!" << std::endl;
+#elif defined GF_GG_MODE
+    std::cout << "System: GF+GG mode enabled!" << std::endl;
+#else
+    std::cout << "System: Unknown mode enabled! Be caution." << std::endl;
+#endif
+#ifdef ENABLE_CLOSED_LOOP
+    std::cout << "System: Closed-Loop mode enabled!" << std::endl;
+#endif
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
