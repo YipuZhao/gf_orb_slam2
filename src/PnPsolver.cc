@@ -153,13 +153,13 @@ void PnPsolver::SetRansacParameters(double probability, int minInliers, int maxI
     mvMaxError[i] = mvSigma2[i] * th2;
 }
 
-cv::Mat PnPsolver::find(vector<bool> &vbInliers, int &nInliers)
+Eigen::MatrixXf PnPsolver::find(vector<bool> &vbInliers, int &nInliers)
 {
   bool bFlag;
   return iterate(mRansacMaxIts, bFlag, vbInliers, nInliers);
 }
 
-cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers)
+Eigen::Matrix4f PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers)
 {
   bNoMore = false;
   vbInliers.clear();
@@ -170,7 +170,7 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
   if (N < mRansacMinInliers)
   {
     bNoMore = true;
-    return cv::Mat();
+    return Eigen::Matrix4f();
   }
 
   vector<size_t> vAvailableIndices;
@@ -229,7 +229,9 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
           if (mvbRefinedInliers[i])
             vbInliers[mvKeyPointIndices[i]] = true;
         }
-        return mRefinedTcw.clone();
+        Eigen::MatrixXf RefinedTcw;
+        cv::cv2eigen(mRefinedTcw, RefinedTcw);
+        return RefinedTcw;
       }
     }
   }
@@ -246,11 +248,13 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInlie
         if (mvbBestInliers[i])
           vbInliers[mvKeyPointIndices[i]] = true;
       }
-      return mBestTcw.clone();
+      Eigen::MatrixXf BestTcwEigen;
+      cv::cv2eigen(mBestTcw, BestTcwEigen);
+      return BestTcwEigen;
     }
   }
 
-  return cv::Mat();
+  return Eigen::Matrix4f();
 }
 
 bool PnPsolver::Refine()

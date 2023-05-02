@@ -199,9 +199,9 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
 
     for(size_t i=0, iend=vpKFs.size() ;i<iend; i++)
     {
-        cv::Mat Tcw = vpKFs[i]->GetPose();
+        cv::Mat Tcw = vpKFs[i]->GetPoseCV();
         cv::Mat Twc = Tcw.inv();
-        cv::Mat ow = vpKFs[i]->GetCameraCenter();
+        cv::Mat ow = vpKFs[i]->GetCameraCenterCV();
         cv::Mat p1w = Twc*p1;
         cv::Mat p2w = Twc*p2;
         cv::Mat p3w = Twc*p3;
@@ -249,7 +249,7 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
             {
                 if((*vit)->mnId<vpKFs[i]->mnId)
                     continue;
-                cv::Mat Ow2 = (*vit)->GetCameraCenter();
+                cv::Mat Ow2 = (*vit)->GetCameraCenterCV();
                 geometry_msgs::Point msgs_o2;
                 msgs_o2.x=Ow2.at<float>(0);
                 msgs_o2.y=Ow2.at<float>(1);
@@ -263,7 +263,7 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
         KeyFrame* pParent = vpKFs[i]->GetParent();
         if(pParent)
         {
-            cv::Mat Owp = pParent->GetCameraCenter();
+            cv::Mat Owp = pParent->GetCameraCenterCV();
             geometry_msgs::Point msgs_op;
             msgs_op.x=Owp.at<float>(0);
             msgs_op.y=Owp.at<float>(1);
@@ -276,7 +276,7 @@ void MapPublisher::PublishKeyFrames(const vector<KeyFrame*> &vpKFs)
         {
             if((*sit)->mnId<vpKFs[i]->mnId)
                 continue;
-            cv::Mat Owl = (*sit)->GetCameraCenter();
+            cv::Mat Owl = (*sit)->GetCameraCenterCV();
             geometry_msgs::Point msgs_ol;
             msgs_ol.x=Owl.at<float>(0);
             msgs_ol.y=Owl.at<float>(1);

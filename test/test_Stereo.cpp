@@ -67,6 +67,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "gtest/gtest.h"
 
+#include <Eigen/Dense>
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgcodecs/legacy/constants_c.h>
+#include <opencv2/core/eigen.hpp>
+
 using namespace ORB_SLAM2;
 
 #define USE_FISHEYE_DISTORTION
@@ -209,7 +215,17 @@ protected:  // You should make the members protected s.t. they can be
         cv::remap(image_l_,image_l_,M1l,M2l,cv::INTER_LINEAR);
         cv::remap(image_r_,image_r_,M1r,M2r,cv::INTER_LINEAR);
 
-        pFrame_ = new Frame(image_l_,image_r_,99999999,mpORBextractorLeft,mpORBextractorRight,mpVocabulary,K,DistCoef,bf,ThDepth);
+        Eigen::MatrixXf image_lEigen, image_rEigen;
+        Eigen::VectorXf distCoefEigen;
+        Eigen::Matrix3f KEigen;
+
+        cv::cv2eigen(image_l_, image_lEigen);
+        cv::cv2eigen(image_r_, image_rEigen);
+        cv::cv2eigen(DistCoef, distCoefEigen);
+        cv::cv2eigen(K, KEigen);
+
+
+        pFrame_ = new Frame(image_lEigen,image_rEigen,99999999,mpORBextractorLeft,mpORBextractorRight,mpVocabulary,KEigen,distCoefEigen,bf,ThDepth);
     }
 
     // virtual void TearDown() will be called after each test is run.

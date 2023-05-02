@@ -23,6 +23,9 @@
 #include "ORBmatcher.h"
 #include <mutex>
 
+#include <opencv2/core/eigen.hpp>
+
+
 namespace ORB_SLAM2
 {
 
@@ -44,11 +47,11 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB) : mnFrameId(F.m
     mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0),
     fx(F.fx), fy(F.fy), cx(F.cx), cy(F.cy), invfx(F.invfx), invfy(F.invfy),
     mbf(F.mbf), mb(F.mb), mThDepth(F.mThDepth), N(F.N), mvKeys(F.mvKeys), mvKeysUn(F.mvKeysUn),
-    mvuRight(F.mvuRight), mvDepth(F.mvDepth), mDescriptors(F.mDescriptors.clone()),
+    mvuRight(F.mvuRight), mvDepth(F.mvDepth), mDescriptors(F.getDescriptorCV()),
     mBowVec(F.mBowVec), mFeatVec(F.mFeatVec), mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor),
     mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
     mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX),
-    mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
+    mnMaxY(F.mnMaxY), mK(F.getmkCV()), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
     mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
     mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb/2), mpMap(pMap)
 {
@@ -225,8 +228,12 @@ void KeyFrame::ExportToYML(cv::FileStorage & fs) {
     write(fs, "cx", cx);
     write(fs, "cy", cy);
 
-    write(fs, "Tcw", Tcw);
-    write(fs, "Ow", Ow);
+    cv::Mat TcwCV, OwCV;
+    cv::eigen2cv(Tcw, TcwCV);
+    cv::eigen2cv(Ow, OwCV);
+
+    write(fs, "Tcw", TcwCV);
+    write(fs, "Ow", OwCV);
 
     //    write(fs, "im", im);
     write(fs, "mnMinX", mnMinX);
@@ -347,57 +354,119 @@ void KeyFrame::ComputeBoW()
     }
 }
 
-void KeyFrame::SetPose(const cv::Mat &Tcw_)
+void KeyFrame::SetPose(const Eigen::MatrixXf &Tcw_)
 {
     unique_lock<mutex> lock(mMutexPose);
-    Tcw_.copyTo(Tcw);
-    cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
-    cv::Mat tcw = Tcw.rowRange(0,3).col(3);
-    cv::Mat Rwc = Rcw.t();
+    Tcw = Tcw_;
+    Eigen::MatrixXf Rcw = Tcw.block<3,3>(0,0);
+    Eigen::VectorXf tcw = Tcw.block<3,1>(0,3);
+    Eigen::MatrixXf Rwc = Rcw.transpose();
     Ow = -Rwc*tcw;
 
-    Twc = cv::Mat::eye(4,4,Tcw.type());
-    Rwc.copyTo(Twc.rowRange(0,3).colRange(0,3));
-    Ow.copyTo(Twc.rowRange(0,3).col(3));
-    cv::Mat center = (cv::Mat_<float>(4,1) << mHalfBaseline, 0 , 0, 1);
+    Twc = Eigen::Matrix4f::Identity();;
+    Tcw.block<3,3>(0,0) = Rwc;
+    Tcw.block<3,1>(0,3) = Ow;
+
+    Eigen::Matrix<float, 4 ,1> center;
+    center << mHalfBaseline;
+    center << 0;
+    center << 0;
+    center << 1;
     Cw = Twc*center;
 }
 
-cv::Mat KeyFrame::GetPose()
+void KeyFrame::SetPoseCV(const cv::Mat &Tcw_)
 {
-    unique_lock<mutex> lock(mMutexPose);
-    return Tcw.clone();
+  Eigen::MatrixXf tcwEigen;
+  cv::cv2eigen(Tcw_, tcwEigen);
+    SetPose(tcwEigen);
 }
 
-cv::Mat KeyFrame::GetPoseInverse()
+Eigen::MatrixXf KeyFrame::GetPose()
 {
     unique_lock<mutex> lock(mMutexPose);
-    return Twc.clone();
+    return Tcw;
 }
 
-cv::Mat KeyFrame::GetCameraCenter()
+cv::Mat KeyFrame::GetPoseCV()
 {
     unique_lock<mutex> lock(mMutexPose);
-    return Ow.clone();
+    cv::Mat TcwCV;
+    cv::eigen2cv(Tcw, TcwCV);
+    return TcwCV;
 }
 
-cv::Mat KeyFrame::GetStereoCenter()
+Eigen::MatrixXf KeyFrame::GetPoseInverse()
 {
     unique_lock<mutex> lock(mMutexPose);
-    return Cw.clone();
+    return Twc;
+}
+
+cv::Mat KeyFrame::GetPoseInverseCV()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    cv::Mat TwcCV;
+    cv::eigen2cv(Twc, TwcCV);
+    return TwcCV.clone();
+}
+
+Eigen::MatrixXf KeyFrame::GetCameraCenter()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    return Ow;
+}
+
+cv::Mat KeyFrame::GetCameraCenterCV()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    cv::Mat OwCV;
+    cv::eigen2cv(Ow, OwCV);
+    return OwCV;
+}
+
+Eigen::MatrixXf KeyFrame::GetStereoCenter()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    return Cw;
+}
+
+cv::Mat KeyFrame::GetStereoCenterCV()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    cv::Mat CwCV;
+    cv::eigen2cv(Cw, CwCV);
+    return CwCV;
 }
 
 
-cv::Mat KeyFrame::GetRotation()
+Eigen::MatrixXf KeyFrame::GetRotation()
 {
     unique_lock<mutex> lock(mMutexPose);
-    return Tcw.rowRange(0,3).colRange(0,3).clone();
+    return Tcw.block<3,3>(0,0);
 }
 
-cv::Mat KeyFrame::GetTranslation()
+cv::Mat KeyFrame::GetRotationCV()
 {
     unique_lock<mutex> lock(mMutexPose);
-    return Tcw.rowRange(0,3).col(3).clone();
+    cv::Mat TcwCV;
+    Eigen::MatrixXf temp = Tcw.block<3,3>(0,0);
+    cv::eigen2cv(temp, TcwCV);
+    return TcwCV.clone();
+}
+
+cv::Mat KeyFrame::GetTranslationCV()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    cv::Mat TcwCV;
+    Eigen::MatrixXf temp = Tcw.block<3,1>(0,3);
+    cv::eigen2cv(temp, TcwCV);
+    return TcwCV.clone();
+}
+
+Eigen::VectorXf KeyFrame::GetTranslation()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    return Tcw.block<3,1>(0,3);
 }
 
 void KeyFrame::AddConnection(KeyFrame *pKF, const int &weight)
@@ -493,7 +562,7 @@ int KeyFrame::GetWeight(KeyFrame *pKF)
         return 0;
 }
 
-cv::Mat KeyFrame::GetOw() {
+Eigen::MatrixXf KeyFrame::GetOw() {
     return Ow;
 }
 
@@ -843,7 +912,7 @@ void KeyFrame::SetBadFlag()
             }
 
         mpParent->EraseChild(this);
-        mTcp = Tcw*mpParent->GetPoseInverse();
+        mTcp = Tcw * mpParent->GetPoseInverse();
         mbBad = true;
     }
 
@@ -920,7 +989,7 @@ bool KeyFrame::IsInImage(const float &x, const float &y) const
     return (x>=mnMinX && x<mnMaxX && y>=mnMinY && y<mnMaxY);
 }
 
-cv::Mat KeyFrame::UnprojectStereo(int i)
+Eigen::MatrixXf KeyFrame::UnprojectStereo(int i)
 {
     const float z = mvDepth[i];
     if(z>0)
@@ -929,38 +998,41 @@ cv::Mat KeyFrame::UnprojectStereo(int i)
         const float v = mvKeys[i].pt.y;
         const float x = (u-cx)*z*invfx;
         const float y = (v-cy)*z*invfy;
-        cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
+
+        Eigen::Matrix<float, 3, 1> x3Dc;
+        x3Dc << x,y,z;
 
         unique_lock<mutex> lock(mMutexPose);
-        return Twc.rowRange(0,3).colRange(0,3)*x3Dc+Twc.rowRange(0,3).col(3);
+        return Twc.block<3,3>(0,0) * x3Dc + Twc.block<3,1>(0,3);
     }
     else
-        return cv::Mat();
+        return Eigen::MatrixXf();
 }
 
 float KeyFrame::ComputeSceneMedianDepth(const int q)
 {
     vector<MapPoint*> vpMapPoints;
-    cv::Mat Tcw_;
+    Eigen::MatrixXf Tcw_;
     {
         unique_lock<mutex> lock(mMutexFeatures);
         unique_lock<mutex> lock2(mMutexPose);
         vpMapPoints = mvpMapPoints;
-        Tcw_ = Tcw.clone();
+        Tcw_ = Tcw;
     }
 
     vector<float> vDepths;
     vDepths.reserve(N);
-    cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3);
-    Rcw2 = Rcw2.t();
-    float zcw = Tcw_.at<float>(2,3);
+    Eigen::Matrix<float,1,3> Rcw2 = Tcw_.row(2);
+    float zcw = Tcw_(2,3);
     for(int i=0; i<N; i++)
     {
         if(mvpMapPoints[i])
         {
             MapPoint* pMP = mvpMapPoints[i];
-            cv::Mat x3Dw = pMP->GetWorldPos();
-            float z = Rcw2.dot(x3Dw)+zcw;
+            Eigen::MatrixXf x3Dw = pMP->GetWorldPosEigen();
+            Eigen::Map<Eigen::RowVectorXf> v1(x3Dw.data(), x3Dw.size());
+
+            float z = Rcw2.dot(v1)+zcw;
             vDepths.push_back(z);
         }
     }

@@ -90,7 +90,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
         for (size_t i = 0; i < vpKFs.size(); i++)
         {
             KeyFrame *pKF = vpKFs[i];
-            cv::Mat Twc = pKF->GetPoseInverse().t();
+            cv::Mat Twc = pKF->GetPoseInverseCV().t();
 
             glPushMatrix();
 
@@ -135,14 +135,14 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
         {
             // Covisibility Graph
             const vector<KeyFrame *> vCovKFs = vpKFs[i]->GetCovisiblesByWeight(100);
-            cv::Mat Ow = vpKFs[i]->GetCameraCenter();
+            cv::Mat Ow = vpKFs[i]->GetCameraCenterCV();
             if (!vCovKFs.empty())
             {
                 for (vector<KeyFrame *>::const_iterator vit = vCovKFs.begin(), vend = vCovKFs.end(); vit != vend; vit++)
                 {
                     if ((*vit)->mnId < vpKFs[i]->mnId)
                         continue;
-                    cv::Mat Ow2 = (*vit)->GetCameraCenter();
+                    cv::Mat Ow2 = (*vit)->GetCameraCenterCV();
                     glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
                     glVertex3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2));
                 }
@@ -152,7 +152,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
             KeyFrame *pParent = vpKFs[i]->GetParent();
             if (pParent)
             {
-                cv::Mat Owp = pParent->GetCameraCenter();
+                cv::Mat Owp = pParent->GetCameraCenterCV();
                 glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
                 glVertex3f(Owp.at<float>(0), Owp.at<float>(1), Owp.at<float>(2));
             }
@@ -163,7 +163,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
             {
                 if ((*sit)->mnId < vpKFs[i]->mnId)
                     continue;
-                cv::Mat Owl = (*sit)->GetCameraCenter();
+                cv::Mat Owl = (*sit)->GetCameraCenterCV();
                 glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
                 glVertex3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2));
             }

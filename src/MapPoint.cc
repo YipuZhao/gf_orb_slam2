@@ -71,7 +71,7 @@ MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF
     mnFound(1), mbBad(false), mpReplaced(NULL), mpMap(pMap), mnIdCoVisible(0), mnIdMapHashed(0), mnIdCandidates(-1), mnQueriedScore(0), mnIdRelocalized(0), mnIdLoopClosure(0)
 {
     Pos.copyTo(mWorldPos);
-    cv::Mat Ow = pFrame->GetCameraCenter();
+    cv::Mat Ow = pFrame->GetCameraCenterCV();
     mNormalVector = mWorldPos - Ow;
     mNormalVector = mNormalVector / cv::norm(mNormalVector);
 
@@ -96,7 +96,8 @@ MapPoint::MapPoint(const cv::Mat &Pos, Map* pMap, Frame* pFrame, const int &idxF
     mfMaxDistance = dist * levelScaleFactor;
     mfMinDistance = mfMaxDistance / pFrame->mvScaleFactors[nLevels - 1];
 
-    pFrame->mDescriptors.row(idxF).copyTo(mDescriptor);
+    cv::eigen2cv(pFrame->mDescriptors, mDescriptor);
+    mDescriptor = mDescriptor.row(idxF);
 
     // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
     unique_lock<mutex> lock(mpMap->mMutexPointCreation);
@@ -251,14 +252,30 @@ void MapPoint::SetWorldPos(const cv::Mat &Pos)
 
 cv::Mat MapPoint::GetWorldPos()
 {
+  unique_lock<mutex> lock(mMutexPos);
+  return mWorldPos;
+}
+
+Eigen::MatrixXf MapPoint::GetWorldPosEigen()
+{
     unique_lock<mutex> lock(mMutexPos);
-    return mWorldPos.clone();
+    Eigen::MatrixXf mWorldPosEigen;
+    cv::cv2eigen(mWorldPos, mWorldPosEigen);
+    return mWorldPosEigen;
 }
 
 cv::Mat MapPoint::GetNormal()
 {
     unique_lock<mutex> lock(mMutexPos);
     return mNormalVector.clone();
+}
+
+Eigen::MatrixXf MapPoint::GetNormalEigen()
+{
+    unique_lock<mutex> lock(mMutexPos);
+    Eigen::MatrixXf mNormalVectorEigen;
+    cv::cv2eigen(mNormalVector, mNormalVectorEigen);
+    return mNormalVectorEigen;
 }
 
 KeyFrame* MapPoint::GetReferenceKeyFrame()
@@ -528,7 +545,7 @@ void MapPoint::UpdateNormalAndDepth()
     for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
     {
         KeyFrame* pKF = mit->first;
-        cv::Mat Owi = pKF->GetCameraCenter();
+        cv::Mat Owi = pKF->GetCameraCenterCV();
         cv::Mat normali = mWorldPos - Owi;
         normal = normal + normali/cv::norm(normali);
         n++;
@@ -536,7 +553,7 @@ void MapPoint::UpdateNormalAndDepth()
 
 //    cout << "pRefKF = " << pRefKF << endl;
 
-    cv::Mat PC = Pos - pRefKF->GetCameraCenter();
+    cv::Mat PC = Pos - pRefKF->GetCameraCenterCV();
     const float dist = cv::norm(PC);
     const int level = pRefKF->mvKeysUn[observations[pRefKF]].octave;
     const float levelScaleFactor =  pRefKF->mvScaleFactors[level];

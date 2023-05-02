@@ -25,6 +25,7 @@
 #include "Tracking.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
 #include "ORBmatcher.h"
@@ -36,12 +37,16 @@
 #include "Optimizer.h"
 #include "PnPsolver.h"
 
+#include <Eigen/Dense>
+
+
 #include <iostream>
 #include <fstream>
 
 #include <mutex>
 
 using namespace std;
+
 
 namespace ORB_SLAM2
 {
@@ -65,12 +70,12 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     float cy = fSettings["Camera.cy"];
     //    cout << "what" << endl;
 
-    cv::Mat K = cv::Mat::eye(3,3,CV_32F);
-    K.at<float>(0,0) = fx;
-    K.at<float>(1,1) = fy;
-    K.at<float>(0,2) = cx;
-    K.at<float>(1,2) = cy;
-    K.copyTo(mK);
+    Eigen::Matrix3f K = Eigen::Matrix3f::Identity();
+    K(0,0) = fx;
+    K(1,1) = fy;
+    K(0,2) = cx;
+    K(1,2) = cy;
+    mK = K;
     //    cout << "what" << endl;
 
     mbf = fSettings["Camera.bf"];
@@ -81,25 +86,25 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 
     if (sensor != System::STEREO) {
         // default code in ORB-SLAM2
-        cv::Mat DistCoef(4,1,CV_32F);
+        Eigen::VectorXf DistCoef;
 #ifdef USE_FISHEYE_DISTORTION
-        DistCoef.at<float>(0) = fSettings["Camera.k1"];
-        DistCoef.at<float>(1) = fSettings["Camera.k2"];
-        DistCoef.at<float>(2) = fSettings["Camera.k3"];
-        DistCoef.at<float>(3) = fSettings["Camera.k4"];
+        DistCoef << fSettings["Camera.k1"];
+        DistCoef << fSettings["Camera.k2"];
+        DistCoef << fSettings["Camera.k3"];
+        DistCoef << fSettings["Camera.k4"];
 #else
-        DistCoef.at<float>(0) = fSettings["Camera.k1"];
-        DistCoef.at<float>(1) = fSettings["Camera.k2"];
-        DistCoef.at<float>(2) = fSettings["Camera.p1"];
-        DistCoef.at<float>(3) = fSettings["Camera.p2"];
+        DistCoef << fSettings["Camera.k1"];
+        DistCoef << fSettings["Camera.k2"];
+        DistCoef << fSettings["Camera.p1"];
+        DistCoef << fSettings["Camera.p2"];
         const float k3 = fSettings["Camera.k3"];
         if(k3!=0)
         {
             DistCoef.resize(5);
-            DistCoef.at<float>(4) = k3;
+            DistCoef << k3;
         }
 #endif
-        DistCoef.copyTo(mDistCoef);
+        mDistCoef = DistCoef;
 
         cout << endl << "Camera Parameters: " << endl;
         cout << "- fx: " << fx << endl;
@@ -107,17 +112,17 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         cout << "- cx: " << cx << endl;
         cout << "- cy: " << cy << endl;
 #ifdef USE_FISHEYE_DISTORTION
-        cout << "- k1: " << DistCoef.at<float>(0) << endl;
-        cout << "- k2: " << DistCoef.at<float>(1) << endl;
-        cout << "- k3: " << DistCoef.at<float>(2) << endl;
-        cout << "- k4: " << DistCoef.at<float>(3) << endl;
+        cout << "- k1: " << DistCoef(0, 0) << endl;
+        cout << "- k2: " << DistCoef(0, 1) << endl;
+        cout << "- k3: " << DistCoef(0, 2) << endl;
+        cout << "- k4: " << DistCoef(0, 4) << endl;
 #else
-        cout << "- k1: " << DistCoef.at<float>(0) << endl;
-        cout << "- k2: " << DistCoef.at<float>(1) << endl;
-        if(DistCoef.rows==5)
-            cout << "- k3: " << DistCoef.at<float>(4) << endl;
-        cout << "- p1: " << DistCoef.at<float>(2) << endl;
-        cout << "- p2: " << DistCoef.at<float>(3) << endl;
+        cout << "- k1: " << DistCoef(0,0) << endl;
+        cout << "- k2: " << DistCoef(0, 1) << endl;
+        if(k3 != 0)
+            cout << "- k3: " << DistCoef(0,4) << endl;
+        cout << "- p1: " << DistCoef(0,2) << endl;
+        cout << "- p2: " << DistCoef(0,3) << endl;
 #endif
 
         if(sensor==System::RGBD)
@@ -176,15 +181,24 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
             return ;
         }
 
-        K_l.copyTo(mK_ori);
-        D_l.copyTo(mDistCoef);
-        R_l.copyTo(mR);
-        P_l.copyTo(mP);
+        mK_ori.resize(rows_l, cols_l);
+        mR.resize(rows_l, cols_l);
+        mP.resize(rows_l, cols_l);
+
+        cv::cv2eigen(K_l, mK_ori);
+        cv::cv2eigen(D_l, mDistCoef);
+        cv::cv2eigen(R_l, mR);
+        cv::cv2eigen(P_l, mP);
+
+        mK_right.resize(rows_r, cols_r);
+        mR_right.resize(rows_r, cols_r);
+        mP_right.resize(rows_r, cols_r);
+
         //
-        K_r.copyTo(mK_right);
-        D_r.copyTo(mDistCoef_right);
-        R_r.copyTo(mR_right);
-        P_r.copyTo(mP_right);
+        cv::cv2eigen(K_r, mK_right);
+        cv::cv2eigen(D_r, mDistCoef_right);
+        cv::cv2eigen(R_r, mR_right);
+        cv::cv2eigen(P_r, mP_right);
 
 #ifndef ALTER_STEREO_MATCHING
         //
@@ -199,22 +213,22 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
 #endif
 
         cout << endl << "Camera Parameters: " << endl;
-        cout << "- fx: " << mK.at<float>(0,0) << endl;
-        cout << "- fy: " << mK.at<float>(1,1) << endl;
-        cout << "- cx: " << mK.at<float>(0,2) << endl;
-        cout << "- cy: " << mK.at<float>(1,2) << endl;
+        cout << "- fx: " << mK(0,0) << endl;
+        cout << "- fy: " << mK(1,1) << endl;
+        cout << "- cx: " << mK(0,2) << endl;
+        cout << "- cy: " << mK(1,2) << endl;
 #ifdef USE_FISHEYE_DISTORTION
-        cout << "- k1: " << mDistCoef.at<float>(0) << endl;
-        cout << "- k2: " << mDistCoef.at<float>(1) << endl;
-        cout << "- k3: " << mDistCoef.at<float>(2) << endl;
-        cout << "- k4: " << mDistCoef.at<float>(3) << endl;
+        cout << "- k1: " << mDistCoef(0) << endl;
+        cout << "- k2: " << mDistCoef(1) << endl;
+        cout << "- k3: " << mDistCoef(2) << endl;
+        cout << "- k4: " << mDistCoef(3) << endl;
 #else
-        cout << "- k1: " << mDistCoef.at<float>(0) << endl;
-        cout << "- k2: " << mDistCoef.at<float>(1) << endl;
-        if(mDistCoef.rows==5)
-            cout << "- k3: " << mDistCoef.at<float>(4) << endl;
-        cout << "- p1: " << mDistCoef.at<float>(2) << endl;
-        cout << "- p2: " << mDistCoef.at<float>(3) << endl;
+        cout << "- k1: " << mDistCoef(0) << endl;
+        cout << "- k2: " << mDistCoef(1) << endl;
+        if(mDistCoef.rows()==5)
+            cout << "- k3: " << mDistCoef(4) << endl;
+        cout << "- p1: " << mDistCoef(2) << endl;
+        cout << "- p2: " << mDistCoef(3) << endl;
 #endif
 
         mThDepth = mbf*(float)fSettings["ThDepth"]/fx;
@@ -444,7 +458,7 @@ void Tracking::SetHashHandler(HASHING::MultiIndexHashing *pHashHandler)
     mpHashMethod = pHashHandler;
 }
 
-cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp)
+Eigen::MatrixXf Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp)
 {
     logCurrentFrame.setZero();
 
@@ -465,14 +479,13 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 
 #else
 
-    mImGray = imRectLeft;
     cv::Mat imGrayRight = imRectRight;
 
 #endif
 
 #ifndef ALTER_STEREO_MATCHING
     // undistort the image as in the original ORB pipeline
-    cv::remap(mImGray, mImGray, mMap1_l, mMap2_l, cv::INTER_LINEAR);
+    cv::remap(imRectLeft, imRectLeft, mMap1_l, mMap2_l, cv::INTER_LINEAR);
     cv::remap(imGrayRight, imGrayRight, mMap1_r, mMap2_r, cv::INTER_LINEAR);
 #endif
 
@@ -480,32 +493,44 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 
     timer_mod.tic();
 
-    if(mImGray.channels()==3)
+    if(imRectLeft.channels()==3)
     {
         if(mbRGB)
         {
-            cvtColor(mImGray,mImGray,CV_RGB2GRAY);
+            cvtColor(imRectLeft,imRectLeft,CV_RGB2GRAY);
             cvtColor(imGrayRight,imGrayRight,CV_RGB2GRAY);
         }
         else
         {
-            cvtColor(mImGray,mImGray,CV_BGR2GRAY);
+            cvtColor(imRectLeft,imRectLeft,CV_BGR2GRAY);
             cvtColor(imGrayRight,imGrayRight,CV_BGR2GRAY);
         }
     }
-    else if(mImGray.channels()==4)
+    else if(imRectLeft.channels()==4)
     {
         if(mbRGB)
         {
-            cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
+            cvtColor(imRectLeft,imRectLeft,CV_RGBA2GRAY);
             cvtColor(imGrayRight,imGrayRight,CV_RGBA2GRAY);
         }
         else
         {
-            cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
+            cvtColor(imRectLeft,imRectLeft,CV_BGRA2GRAY);
             cvtColor(imGrayRight,imGrayRight,CV_BGRA2GRAY);
         }
     }
+
+    Eigen::MatrixXf imRectLeftEigen;
+    cv::cv2eigen(imRectLeft, imRectLeftEigen);
+
+#ifdef ENABLE_WHITE_BALANCE
+
+
+#else
+
+    mImGray = imRectLeftEigen;
+
+#endif
 
 #ifdef SIMU_MOTION_BLUR
 
@@ -522,7 +547,10 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
     //    mCurrentFrame = Frame(mImGray,imGrayRight,timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     //
 
-    mCurrentFrame = Frame(mImGray, imGrayRight, timestamp,
+    Eigen::MatrixXf imGrayRightEigen;
+    cv::cv2eigen(imGrayRight, imGrayRightEigen);
+
+    mCurrentFrame = Frame(imRectLeftEigen, imGrayRightEigen, timestamp,
                           mpORBextractorLeft, mpORBextractorRight, mpORBVocabulary, mK,
                           mK_ori, mDistCoef, mR, mP,
                           mK_right, mDistCoef_right, mR_right, mP_right,
@@ -532,16 +560,34 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 
     Track();
 
-    return mCurrentFrame.mTcw.clone();
+    return mCurrentFrame.GetPose();
 }
 
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
+Eigen::MatrixXf Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp)
 {
     logCurrentFrame.setZero();
 
     arma::wall_clock timer_mod;
     timer_mod.tic();
+
+    if(imRGB.channels()==3)
+    {
+        if(mbRGB)
+            cvtColor(imRGB,imRGB,CV_RGB2GRAY);
+        else
+            cvtColor(imRGB,imRGB,CV_BGR2GRAY);
+    }
+    else if(imRGB.channels()==4)
+    {
+        if(mbRGB)
+            cvtColor(imRGB,imRGB,CV_RGBA2GRAY);
+        else
+            cvtColor(imRGB,imRGB,CV_BGRA2GRAY);
+    }
+
+    Eigen::MatrixXf imRGBEigen;
+    cv::cv2eigen(imRGB, imRGBEigen);
 
 #ifdef ENABLE_WHITE_BALANCE
 
@@ -551,45 +597,56 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const d
 
 #else
 
-    mImGray = imRGB;
+    mImGray = imRGBEigen;
     cv::Mat imDepth = imD;
 
 #endif
 
-    if(mImGray.channels()==3)
-    {
-        if(mbRGB)
-            cvtColor(mImGray,mImGray,CV_RGB2GRAY);
-        else
-            cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-    }
-    else if(mImGray.channels()==4)
-    {
-        if(mbRGB)
-            cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
-        else
-            cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
-    }
-
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-    mCurrentFrame = Frame(mImGray,imDepth,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    Eigen::MatrixXf imDepthEigen;
+    cv::cv2eigen(imDepth, imDepthEigen);
+
+    mCurrentFrame = Frame(imRGBEigen,imDepthEigen,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
     logCurrentFrame.time_ORB_extraction = timer_mod.toc();
 
     Track();
 
-    return mCurrentFrame.mTcw.clone();
+    return mCurrentFrame.GetPose();
 }
 
 
-cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
+Eigen::MatrixXf Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 {
     logCurrentFrame.setZero();
 
     arma::wall_clock timer_mod;
     timer_mod.tic();
+
+    if(im.channels()==3)
+    {
+        if(mbRGB)
+            cvtColor(im,im,CV_RGB2GRAY);
+        else
+            cvtColor(im,im,CV_BGR2GRAY);
+    }
+    else if(im.channels()==4)
+    {
+        if(mbRGB)
+            cvtColor(im,im,CV_RGBA2GRAY);
+        else
+            cvtColor(im,im,CV_BGRA2GRAY);
+    }
+
+    Eigen::MatrixXf imEigen;
+    cv::cv2eigen(im, imEigen);
+
+    if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
+        mCurrentFrame = Frame(imEigen,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    else
+        mCurrentFrame = Frame(imEigen,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
 #ifdef ENABLE_WHITE_BALANCE
 
@@ -598,36 +655,16 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
 #else
 
-    mImGray = im;
+    mImGray = imEigen;
 
 #endif
 
-
-    if(mImGray.channels()==3)
-    {
-        if(mbRGB)
-            cvtColor(mImGray,mImGray,CV_RGB2GRAY);
-        else
-            cvtColor(mImGray,mImGray,CV_BGR2GRAY);
-    }
-    else if(mImGray.channels()==4)
-    {
-        if(mbRGB)
-            cvtColor(mImGray,mImGray,CV_RGBA2GRAY);
-        else
-            cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
-    }
-
-    if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
-        mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
-    else
-        mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
     logCurrentFrame.time_ORB_extraction = timer_mod.toc();
 
     Track();
 
-    return mCurrentFrame.mTcw.clone();
+    return mCurrentFrame.GetPose();
 }
 
 
@@ -786,7 +823,7 @@ void Tracking::Track()
                 mCurrentFrame.PrepareStereoCandidates();
 #endif
 
-                if (mVelocity.empty() || mCurrentFrame.mnId < mnLastRelocFrameId + 2)
+                if (mVelocity.size()==0 || mCurrentFrame.mnId < mnLastRelocFrameId + 2)
                 {
                     timer_mod.tic();
                     bOK = TrackReferenceKeyFrame();
@@ -845,7 +882,7 @@ void Tracking::Track()
                 {
                     // In last frame we tracked enough MapPoints in the map
 
-                    if (!mVelocity.empty())
+                    if (mVelocity.size() != 0)
                     {
                         bOK = TrackWithMotionModel();
                     }
@@ -866,13 +903,13 @@ void Tracking::Track()
                     bool bOKReloc = false;
                     vector<MapPoint *> vpMPsMM;
                     vector<bool> vbOutMM;
-                    cv::Mat TcwMM;
-                    if (!mVelocity.empty())
+                    Eigen::MatrixXf TcwMM;
+                    if (mVelocity.size() != 0)
                     {
                         bOKMM = TrackWithMotionModel();
                         vpMPsMM = mCurrentFrame.mvpMapPoints;
                         vbOutMM = mCurrentFrame.mvbOutlier;
-                        TcwMM = mCurrentFrame.mTcw.clone();
+                        TcwMM = mCurrentFrame.mTcw;
                     }
                     bOKReloc = Relocalization();
 
@@ -963,21 +1000,25 @@ void Tracking::Track()
             timer_mod.tic();
 
             // Update motion model
-            if (!mLastFrame.mTcw.empty())
+            if (mLastFrame.mTcw.size() != 0)
             {
-                cv::Mat LastTwc = cv::Mat::eye(4, 4, CV_32F);
-                mLastFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0, 3).colRange(0, 3));
-                mLastFrame.GetCameraCenter().copyTo(LastTwc.rowRange(0, 3).col(3));
+                Eigen::Matrix4f LastTwc = Eigen::Matrix4f::Identity();
+                LastTwc.block<3,3>(0,0) = mLastFrame.GetRotationInverse();
+                LastTwc.block<3,1>(0,3) = mLastFrame.GetCameraCenter();
                 mVelocity = mCurrentFrame.mTcw * LastTwc;
             }
             else
-                mVelocity = cv::Mat();
+                mVelocity = Eigen::MatrixXf();
 
             // VIZ only
             //        if (mCurrentFrame.mnId % 20 == 0)
             // PlotFrameWithPointMatches();
 
-            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+            cv::Mat mTcwCv;
+
+            cv::eigen2cv(mCurrentFrame.mTcw, mTcwCv);
+
+            mpMapDrawer->SetCurrentCameraPose(mTcwCv);
 
             logCurrentFrame.time_update_motion = timer_mod.toc();
 
@@ -1075,10 +1116,12 @@ void Tracking::Track()
     //    }
 
 #ifdef REALTIME_TRAJ_LOGGING
-    if(!mCurrentFrame.mTcw.empty())
+    if(mCurrentFrame.mTcw.size() != 0)
     {
         // Write the real time tracking result to file
-        FramePose poseTmp = FramePose(mCurrentFrame.mTimeStamp, mCurrentFrame.mTcw);
+        cv::Mat mTcwCv;
+        cv::eigen2cv(mCurrentFrame.mTcw, mTcwCv);
+        FramePose poseTmp = FramePose(mCurrentFrame.mTimeStamp, mTcwCv);
 
         double timestamp = poseTmp.time_stamp;
         cv::Mat Homm = poseTmp.homm;
@@ -1309,9 +1352,9 @@ void Tracking::Track()
     logCurrentFrame.time_post_proc = timer_mod.toc();
 
     // Store frame pose information to retrieve the complete camera trajectory afterwards.
-    if(!mCurrentFrame.mTcw.empty())
+    if(mCurrentFrame.mTcw.size() != 0)
     {
-        cv::Mat Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
+        Eigen::MatrixXf Tcr = mCurrentFrame.mTcw*mCurrentFrame.mpReferenceKF->GetPoseInverse();
         mlRelativeFramePoses.push_back(Tcr);
         mlpReferences.push_back(mpReferenceKF);
         mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
@@ -1366,7 +1409,7 @@ void Tracking::StereoInitialization()
         }
 #else
         // Set Frame pose to the origin
-        mCurrentFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
+        mCurrentFrame.SetPose(Eigen::Matrix4f::Identity());
 #endif
 
         // Create KeyFrame
@@ -1381,7 +1424,8 @@ void Tracking::StereoInitialization()
             float z = mCurrentFrame.mvDepth[i];
             if(z>0)
             {
-                cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
+                cv::Mat x3D;
+                cv::eigen2cv(mCurrentFrame.UnprojectStereo(i), x3D);
                 MapPoint* pNewMP = new MapPoint(x3D,pKFini,mpMap);
                 pNewMP->AddObservation(pKFini,i);
                 pKFini->AddMapPoint(pNewMP,i);
@@ -1410,7 +1454,11 @@ void Tracking::StereoInitialization()
 
         mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+        cv::Mat mTcwCv;
+
+        cv::eigen2cv(mCurrentFrame.mTcw, mTcwCv);
+
+        mpMapDrawer->SetCurrentCameraPose(mTcwCv);
 
         mState=OK;
 
@@ -1487,11 +1535,17 @@ void Tracking::MonocularInitialization()
                 }
             }
 
+            Eigen::MatrixXf RcwEigen;
+            Eigen::VectorXf tcwEigen;
+
+            cv::cv2eigen(Rcw, RcwEigen);
+            cv::cv2eigen(tcw, tcwEigen);
+
             // Set Frame Poses
-            mInitialFrame.SetPose(cv::Mat::eye(4,4,CV_32F));
-            cv::Mat Tcw = cv::Mat::eye(4,4,CV_32F);
-            Rcw.copyTo(Tcw.rowRange(0,3).colRange(0,3));
-            tcw.copyTo(Tcw.rowRange(0,3).col(3));
+            mInitialFrame.SetPose(Eigen::Matrix4f::Identity());
+            Eigen::Matrix4f Tcw = Eigen::Matrix4f::Identity();
+            Tcw.block<3,3>(0,0) = RcwEigen;
+            Tcw.block<3,1>(0,3) = tcwEigen;
             mCurrentFrame.SetPose(Tcw);
 
             CreateInitialMapMonocular();
@@ -1566,8 +1620,8 @@ void Tracking::CreateInitialMapMonocular()
     }
 
     // Scale initial baseline
-    cv::Mat Tc2w = pKFcur->GetPose();
-    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+    Eigen::MatrixXf Tc2w = pKFcur->GetPose();
+    Tc2w.block<3,1>(0,3) = Tc2w.block<3,1>(0,3)*invMedianDepth;
     pKFcur->SetPose(Tc2w);
 
     // Scale points
@@ -1598,7 +1652,7 @@ void Tracking::CreateInitialMapMonocular()
 
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
-    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
+    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPoseCV());
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
@@ -1700,7 +1754,7 @@ void Tracking::UpdateLastFrame()
 {
     // Update pose according to reference keyframe
     KeyFrame* pRef = mLastFrame.mpReferenceKF;
-    cv::Mat Tlr = mlRelativeFramePoses.back();
+    Eigen::MatrixXf Tlr = mlRelativeFramePoses.back();
 
     mLastFrame.SetPose(Tlr*pRef->GetPose());
 
@@ -1744,7 +1798,8 @@ void Tracking::UpdateLastFrame()
 
         if(bCreateNew)
         {
-            cv::Mat x3D = mLastFrame.UnprojectStereo(i);
+            cv::Mat x3D;
+            cv::eigen2cv(mLastFrame.UnprojectStereo(i), x3D);
             MapPoint* pNewMP = new MapPoint(x3D,mpMap,&mLastFrame,i);
 
             mLastFrame.mvpMapPoints[i]=pNewMP;
@@ -2281,8 +2336,13 @@ bool Tracking::NeedNewKeyFrame_Temp()
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
 
     bool mbFastTurning = false;
-    if(!mVelocity.empty()) {
-        vector<float> q = ORB_SLAM2::Converter::toQuaternion(mVelocity.rowRange(0,3).colRange(0,3));
+    if(mVelocity.size() != 0) {
+        Eigen::Quaternionf w(mVelocity.block<3,3>(0,0));
+        vector<float> q;
+        q[0] = w.x();
+        q[1] = w.y();
+        q[2] = w.z();
+        q[3] = w.w();
         // std::cout << "rotation vel = " << q[3] << std::endl;
         if (q[3] < 0.9998)
             mbFastTurning = true;
@@ -2538,8 +2598,8 @@ void Tracking::CreateNewKeyFrame()
 
                 if(bCreateNew)
                 {
-                    cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
-                    MapPoint* pNewMP = new MapPoint(x3D,pKF,mpMap);
+                    cv::Mat x3D;
+                    cv::eigen2cv(mLastFrame.UnprojectStereo(i), x3D);                    MapPoint* pNewMP = new MapPoint(x3D,pKF,mpMap);
                     pNewMP->AddObservation(pKF,i);
                     pKF->AddMapPoint(pNewMP,i);
                     pNewMP->ComputeDistinctiveDescriptors();
@@ -3285,7 +3345,7 @@ bool Tracking::Relocalization()
             bool bNoMore;
 
             PnPsolver* pSolver = vpPnPsolvers[i];
-            cv::Mat Tcw = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
+            Eigen::Matrix4f Tcw = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
 
             // If Ransac reachs max. iterations discard keyframe
             if(bNoMore)
@@ -3295,9 +3355,9 @@ bool Tracking::Relocalization()
             }
 
             // If a Camera Pose is computed, optimize
-            if(!Tcw.empty())
+            if(Tcw.rows() != 0)
             {
-                Tcw.copyTo(mCurrentFrame.mTcw);
+                mCurrentFrame.mTcw = Tcw;
 
                 set<MapPoint*> sFound;
 
@@ -3474,34 +3534,34 @@ void Tracking::ChangeCalibration(const string &strSettingPath)
     float cx = fSettings["Camera.cx"];
     float cy = fSettings["Camera.cy"];
 
-    cv::Mat K = cv::Mat::eye(3,3,CV_32F);
-    K.at<float>(0,0) = fx;
-    K.at<float>(1,1) = fy;
-    K.at<float>(0,2) = cx;
-    K.at<float>(1,2) = cy;
-    K.copyTo(mK);
+    Eigen::Matrix3f K = Eigen::Matrix3f::Identity();
+    K(0,0) = fx;
+    K(1,1) = fy;
+    K(0,2) = cx;
+    K(1,2) = cy;
+    mK = K;
 
-    cv::Mat DistCoef(4,1,CV_32F);
+    Eigen::Vector4f DistCoef;
 
 #ifdef USE_FISHEYE_DISTORTION
-    DistCoef.at<float>(0) = fSettings["Camera.k1"];
-    DistCoef.at<float>(1) = fSettings["Camera.k2"];
-    DistCoef.at<float>(2) = fSettings["Camera.k3"];
-    DistCoef.at<float>(3) = fSettings["Camera.k4"];
+    DistCoef(0) = fSettings["Camera.k1"];
+    DistCoef(1) = fSettings["Camera.k2"];
+    DistCoef(2) = fSettings["Camera.k3"];
+    DistCoef(3) = fSettings["Camera.k4"];
 #else
-    DistCoef.at<float>(0) = fSettings["Camera.k1"];
-    DistCoef.at<float>(1) = fSettings["Camera.k2"];
-    DistCoef.at<float>(2) = fSettings["Camera.p1"];
-    DistCoef.at<float>(3) = fSettings["Camera.p2"];
+    DistCoef(0) = fSettings["Camera.k1"];
+    DistCoef(1) = fSettings["Camera.k2"];
+    DistCoef(2) = fSettings["Camera.p1"];
+    DistCoef(3) = fSettings["Camera.p2"];
     const float k3 = fSettings["Camera.k3"];
     if(k3!=0)
     {
         DistCoef.resize(5);
-        DistCoef.at<float>(4) = k3;
+        DistCoef(4) = k3;
     }
 #endif
 
-    DistCoef.copyTo(mDistCoef);
+    mDistCoef = DistCoef;
 
     mbf = fSettings["Camera.bf"];
 
@@ -3994,10 +4054,15 @@ bool Tracking::UpdateQueryNumByHashTable(const double time_limit)
 void Tracking::PlotFrameWithPointMatches() {
 
     // create new image to modify it
-    cv::Mat img_l_aux;
-    mImGray.copyTo( img_l_aux );
-    if( img_l_aux.channels() == 1 )
-        cv::cvtColor(img_l_aux,img_l_aux,CV_GRAY2BGR);
+    Eigen::MatrixXf img_l_aux;
+    img_l_aux = mImGray;
+
+    cv::Mat img_l_aux_cv;
+
+    cv::eigen2cv(img_l_aux, img_l_aux_cv);
+
+    if( img_l_aux_cv.channels() == 1 )
+        cv::cvtColor(img_l_aux_cv,img_l_aux_cv,CV_GRAY2BGR);
 
     // Variables
     cv::Point       p;
@@ -4046,7 +4111,7 @@ void Tracking::PlotFrameWithPointMatches() {
         //        {
         //            cv::circle( img_l_aux, p, 3.0, cv::Scalar(0,255,0), thick);
         //        }
-        cv::circle( img_l_aux, p, 3.0, cv::Scalar(0,255,0), thick);
+        cv::circle( img_l_aux_cv, p, 3.0, cv::Scalar(0,255,0), thick);
 
         match_counter ++;
 
@@ -4078,7 +4143,7 @@ void Tracking::PlotFrameWithPointMatches() {
     //             1.5, // Scale. 2.0 = 2x bigger
     //             cv::Scalar(0,0,255), // Color
     //             2.0); // Thickness
-    cv::putText(img_l_aux,
+    cv::putText(img_l_aux_cv,
                 "Features Matched: " + std::to_string(match_counter),
                 cv::Point(10, 470), // Coordinates
                 cv::FONT_HERSHEY_PLAIN, // Font
@@ -4089,7 +4154,7 @@ void Tracking::PlotFrameWithPointMatches() {
     //
     frame_wid = "/mnt/DATA/tmp/Demo/ORB_blur/";
     frame_wid += std::to_string(time_stamp);
-    cv::imwrite( frame_wid + ".png", img_l_aux );
+    cv::imwrite( frame_wid + ".png", img_l_aux_cv );
 
     //    ++ frame_counter;
 }

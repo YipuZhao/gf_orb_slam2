@@ -45,6 +45,17 @@ g2o::SE3Quat Converter::toSE3Quat(const cv::Mat &cvT)
     return g2o::SE3Quat(R, t);
 }
 
+g2o::SE3Quat Converter::toSE3Quat(const Eigen::MatrixXf &eMatrix)
+{
+  Eigen::Matrix<float, 3, 1> t(eMatrix(0, 3), eMatrix(1, 3), eMatrix(2, 3));
+  return g2o::SE3Quat(eMatrix.cast<double>(), t.cast<double>());
+}
+
+Eigen::MatrixXf Converter::toEigen(const g2o::SE3Quat &SE3)
+{
+    return SE3.to_homogeneous_matrix().cast<float>();
+}
+
 cv::Mat Converter::toCvMat(const g2o::SE3Quat &SE3)
 {
     Eigen::Matrix<double, 4, 4> eigMat = SE3.to_homogeneous_matrix();

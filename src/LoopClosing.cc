@@ -341,8 +341,11 @@ bool LoopClosing::ComputeSim3()
 
                 cv::Mat R = pSolver->GetEstimatedRotation();
                 cv::Mat t = pSolver->GetEstimatedTranslation();
+                Eigen::MatrixXf R_Eigen, T_Eigen;
+                cv::cv2eigen(R, R_Eigen);
+                cv::cv2eigen(t, T_Eigen);
                 const float s = pSolver->GetEstimatedScale();
-                matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
+                matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R_Eigen,T_Eigen,7.5);
 
                 g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
                 const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
@@ -352,7 +355,7 @@ bool LoopClosing::ComputeSim3()
                 {
                     bMatch = true;
                     mpMatchedKF = pKF;
-                    g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()),Converter::toVector3d(pKF->GetTranslation()),1.0);
+                    g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotationCV()),Converter::toVector3d(pKF->GetTranslationCV()),1.0);
                     mg2oScw = gScm*gSmw;
                     mScw = Converter::toCvMat(mg2oScw);
 
@@ -394,7 +397,9 @@ bool LoopClosing::ComputeSim3()
     }
 
     // Find more matches projecting with the computed Sim3
-    matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
+    Eigen::MatrixXf mScwEigen;
+    cv::cv2eigen(mScw, mScwEigen);
+    matcher.SearchByProjection(mpCurrentKF, mScwEigen, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
 
     // If enough matches accept Loop
     int nTotalMatches = 0;
@@ -459,7 +464,7 @@ void LoopClosing::CorrectLoop()
 
     KeyFrameAndPose CorrectedSim3, NonCorrectedSim3;
     CorrectedSim3[mpCurrentKF]=mg2oScw;
-    cv::Mat Twc = mpCurrentKF->GetPoseInverse();
+    Eigen::MatrixXf Twc = mpCurrentKF->GetPoseInverse();
 
 
     {
@@ -470,22 +475,22 @@ void LoopClosing::CorrectLoop()
         {
             KeyFrame* pKFi = *vit;
 
-            cv::Mat Tiw = pKFi->GetPose();
+            Eigen::MatrixXf Tiw = pKFi->GetPose();
 
             if(pKFi!=mpCurrentKF)
             {
-                cv::Mat Tic = Tiw*Twc;
-                cv::Mat Ric = Tic.rowRange(0,3).colRange(0,3);
-                cv::Mat tic = Tic.rowRange(0,3).col(3);
-                g2o::Sim3 g2oSic(Converter::toMatrix3d(Ric),Converter::toVector3d(tic),1.0);
-                g2o::Sim3 g2oCorrectedSiw = g2oSic*mg2oScw;
+              Eigen::MatrixXf Tic = Tiw*Twc;
+              Eigen::MatrixXf Ric = Tic.block<3,3>(0,0);
+              Eigen::VectorXf tic = Tic.block<3,1>(0,3);
+              g2o::Sim3 g2oSic(Ric.cast<double>(),tic.cast<double>(),1.0);
+              g2o::Sim3 g2oCorrectedSiw = g2oSic*mg2oScw;
                 //Pose corrected with the Sim3 of the loop closure
                 CorrectedSim3[pKFi]=g2oCorrectedSiw;
             }
 
-            cv::Mat Riw = Tiw.rowRange(0,3).colRange(0,3);
-            cv::Mat tiw = Tiw.rowRange(0,3).col(3);
-            g2o::Sim3 g2oSiw(Converter::toMatrix3d(Riw),Converter::toVector3d(tiw),1.0);
+            Eigen::MatrixXf Riw = Tiw.block<3,3>(0,0);
+            Eigen::VectorXf tiw = Tiw.block<3,1>(0,3);
+            g2o::Sim3 g2oSiw(Riw.cast<double>(),tiw.cast<double>(),1.0);
             //Pose without correction
             NonCorrectedSim3[pKFi]=g2oSiw;
         }
@@ -531,7 +536,11 @@ void LoopClosing::CorrectLoop()
 
             cv::Mat correctedTiw = Converter::toCvSE3(eigR,eigt);
 
-            pKFi->SetPose(correctedTiw);
+            Eigen::MatrixXf correctedTiwEigen;
+
+            cv::cv2eigen(correctedTiw, correctedTiwEigen);
+
+            pKFi->SetPose(correctedTiwEigen);
 
             // Make sure connections are updated
             pKFi->UpdateConnections();
@@ -618,7 +627,9 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap)
         cv::Mat cvScw = Converter::toCvMat(g2oScw);
 
         vector<MapPoint*> vpReplacePoints(mvpLoopMapPoints.size(),static_cast<MapPoint*>(NULL));
-        matcher.Fuse(pKF,cvScw,mvpLoopMapPoints,4,vpReplacePoints);
+        Eigen::MatrixXf cvScwEigen;
+        cv::cv2eigen(cvScw, cvScwEigen);
+        matcher.Fuse(pKF,cvScwEigen,mvpLoopMapPoints,4,vpReplacePoints);
 
         // Get Map Mutex
         unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
@@ -707,13 +718,13 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
             {
                 KeyFrame* pKF = lpKFtoCheck.front();
                 const set<KeyFrame*> sChilds = pKF->GetChilds();
-                cv::Mat Twc = pKF->GetPoseInverse();
+                Eigen::MatrixXf Twc = pKF->GetPoseInverse();
                 for(set<KeyFrame*>::const_iterator sit=sChilds.begin();sit!=sChilds.end();sit++)
                 {
                     KeyFrame* pChild = *sit;
                     if(pChild->mnBAGlobalForKF!=nLoopKF)
                     {
-                        cv::Mat Tchildc = pChild->GetPose()*Twc;
+                        Eigen::MatrixXf Tchildc = pChild->GetPose()*Twc;
                         pChild->mTcwGBA = Tchildc*pKF->mTcwGBA;//*Tcorc*pKF->mTcwGBA;
                         pChild->mnBAGlobalForKF=nLoopKF;
 
@@ -750,16 +761,20 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
                         continue;
 
                     // Map to non-corrected camera
-                    cv::Mat Rcw = pRefKF->mTcwBefGBA.rowRange(0,3).colRange(0,3);
-                    cv::Mat tcw = pRefKF->mTcwBefGBA.rowRange(0,3).col(3);
-                    cv::Mat Xc = Rcw*pMP->GetWorldPos()+tcw;
+                    Eigen::MatrixXf Rcw = pRefKF->mTcwBefGBA.block<3,3>(0,0);
+                    Eigen::MatrixXf tcw = pRefKF->mTcwBefGBA.block<3,1>(0,3);
+                    Eigen::MatrixXf Xc = Rcw*pMP->GetWorldPosEigen()+tcw;
 
                     // Backproject using corrected camera
-                    cv::Mat Twc = pRefKF->GetPoseInverse();
-                    cv::Mat Rwc = Twc.rowRange(0,3).colRange(0,3);
-                    cv::Mat twc = Twc.rowRange(0,3).col(3);
+                    Eigen::MatrixXf Twc = pRefKF->GetPoseInverse();
+                    Eigen::MatrixXf Rwc = Twc.block<3,3>(0,0);
+                    Eigen::MatrixXf twc = Twc.block<3,1>(0,3);
 
-                    pMP->SetWorldPos(Rwc*Xc+twc);
+                    Eigen::MatrixXf worldPos = Rwc*Xc+twc;
+                    cv::Mat worldPosCV;
+                    cv::eigen2cv(worldPos, worldPosCV);
+
+                    pMP->SetWorldPos(worldPosCV);
                 }
             }            
 

@@ -22,6 +22,7 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include <thread>
+#include <opencv2/core/eigen.hpp>
 
 namespace ORB_SLAM2
 {
@@ -38,11 +39,11 @@ Frame::Frame()
 //Copy Constructor
 Frame::Frame(const Frame &frame)
     :mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), mpORBextractorRight(frame.mpORBextractorRight),
-      mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
+      mTimeStamp(frame.mTimeStamp), mK(frame.mK), mDistCoef(frame.mDistCoef),
       mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
       mvKeysRight(frame.mvKeysRight), mvKeysUn(frame.mvKeysUn),  mvuRight(frame.mvuRight),
       mvDepth(frame.mvDepth), mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec),
-      mDescriptors(frame.mDescriptors.clone()), mDescriptorsRight(frame.mDescriptorsRight.clone()),
+      mDescriptors(frame.mDescriptors), mDescriptorsRight(frame.mDescriptorsRight),
       mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier), mnId(frame.mnId),
       mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
       mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
@@ -53,19 +54,19 @@ Frame::Frame(const Frame &frame)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
             mGrid[i][j]=frame.mGrid[i][j];
 
-    if(!frame.mTcw.empty())
+    if(frame.mTcw.size() != 0)
         SetPose(frame.mTcw);
 }
 
 
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp,
-             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K,
-             cv::Mat &K_left, cv::Mat &distCoef_left, cv::Mat &R_left, cv::Mat &P_left,
-             cv::Mat &K_right, cv::Mat &distCoef_right, cv::Mat &R_right, cv::Mat &P_right,
+Frame::Frame(const Eigen::MatrixXf &imLeft, const Eigen::MatrixXf &imRight, const double &timeStamp,
+             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, Eigen::Matrix3f &K,
+             Eigen::MatrixXf &K_left, Eigen::VectorXf &distCoef_left, Eigen::MatrixXf &R_left, Eigen::MatrixXf &P_left,
+             Eigen::MatrixXf &K_right, Eigen::VectorXf &distCoef_right, Eigen::MatrixXf &R_right, Eigen::MatrixXf &P_right,
              const float &bf, const float &thDepth)
-    :mpORBextractorLeft(extractorLeft), mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),
-      mK_ori(K_left.clone()), mDistCoef(distCoef_left.clone()), mR(R_left.clone()), mP(P_left.clone()),
-      mK_right(K_right.clone()), mDistCoef_right(distCoef_right.clone()), mR_right(R_right.clone()), mP_right(P_right.clone()),
+    :mpORBextractorLeft(extractorLeft), mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K),
+      mK_ori(K_left), mDistCoef(distCoef_left), mR(R_left), mP(P_left),
+      mK_right(K_right), mDistCoef_right(distCoef_right), mR_right(R_right), mP_right(P_right),
       mbf(bf), mThDepth(thDepth), mpORBvocabulary(voc), mpReferenceKF(static_cast<KeyFrame*>(NULL))
 {
     // Frame ID
@@ -132,10 +133,10 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
         mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/(mnMaxX-mnMinX);
         mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/(mnMaxY-mnMinY);
 
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
+        fx = K(0,0);
+        fy = K(1,1);
+        cx = K(0,2);
+        cy = K(1,2);
         invfx = 1.0f/fx;
         invfy = 1.0f/fy;
 
@@ -149,16 +150,16 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp,
-             ORBextractor *extractorLeft, ORBextractor *extractorRight, ORBVocabulary *voc, cv::Mat &K,
-             cv::Mat &K_left, cv::Mat &distCoef_left, cv::Mat &R_left, cv::Mat &P_left,
-             cv::Mat &K_right, cv::Mat &distCoef_right, cv::Mat &R_right, cv::Mat &P_right,
+Frame::Frame(const Eigen::MatrixXf &imLeft, const Eigen::MatrixXf &imRight, const double &timeStamp,
+             ORBextractor *extractorLeft, ORBextractor *extractorRight, ORBVocabulary *voc, Eigen::Matrix3f &K,
+             Eigen::MatrixXf &K_left, Eigen::VectorXf &distCoef_left, Eigen::MatrixXf &R_left, Eigen::MatrixXf &P_left,
+             Eigen::MatrixXf &K_right, Eigen::VectorXf &distCoef_right, Eigen::MatrixXf &R_right, Eigen::MatrixXf &P_right,
              const float &bf, const float &thDepth,
              const std::vector<cv::KeyPoint> &vKeys_left, const std::vector<cv::KeyPoint> &vKeys_right,
-             const cv::Mat &mDisc_left, const cv::Mat &mDisc_right)
-    : mpORBextractorLeft(extractorLeft), mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),
-      mK_ori(K_left.clone()), mDistCoef(distCoef_left.clone()), mR(R_left.clone()), mP(P_left.clone()),
-      mK_right(K_right.clone()), mDistCoef_right(distCoef_right.clone()), mR_right(R_right.clone()), mP_right(P_right.clone()),
+             const Eigen::MatrixXf &mDisc_left, const Eigen::MatrixXf &mDisc_right)
+    : mpORBextractorLeft(extractorLeft), mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K),
+      mK_ori(K_left), mDistCoef(distCoef_left), mR(R_left), mP(P_left),
+      mK_right(K_right), mDistCoef_right(distCoef_right), mR_right(R_right), mP_right(P_right),
       mbf(bf), mThDepth(thDepth), mpORBvocabulary(voc), mpReferenceKF(static_cast<KeyFrame *>(NULL)),
       mvKeys(vKeys_left), mvKeysRight(vKeys_right), mDescriptors(mDisc_left), mDescriptorsRight(mDisc_right)
 {
@@ -182,8 +183,12 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 
     // NOTE
     // only build pyramid, while other detection results are directly copied from input parameters
-    thread threadLeft(&ORBextractor::ComputePyramid, this->mpORBextractorLeft, imLeft);
-    thread threadRight(&ORBextractor::ComputePyramid, this->mpORBextractorRight, imRight);
+    cv::Mat imLeftCV, imRightCV;
+    cv::eigen2cv(imLeft, imLeftCV);
+    cv::eigen2cv(imRight, imRightCV);
+
+    thread threadLeft(&ORBextractor::ComputePyramid, this->mpORBextractorLeft, imLeftCV);
+    thread threadRight(&ORBextractor::ComputePyramid, this->mpORBextractorRight, imRightCV);
     threadLeft.join();
     threadRight.join();
 
@@ -233,10 +238,10 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
         mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / (mnMaxX - mnMinX);
         mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / (mnMaxY - mnMinY);
 
-        fx = K.at<float>(0, 0);
-        fy = K.at<float>(1, 1);
-        cx = K.at<float>(0, 2);
-        cy = K.at<float>(1, 2);
+        fx = K(0, 0);
+        fy = K(1, 1);
+        cx = K(0, 2);
+        cy = K(1, 2);
         invfx = 1.0f / fx;
         invfy = 1.0f / fy;
 
@@ -251,11 +256,11 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp,
-             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K,
-             cv::Mat &distCoef, const float &bf, const float &thDepth)
-    :mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),
-      mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
+Frame::Frame(const Eigen::MatrixXf &imLeft, const Eigen::MatrixXf &imRight, const double &timeStamp,
+             ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, Eigen::Matrix3f &K,
+             Eigen::VectorXf &distCoef, const float &bf, const float &thDepth)
+    :mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K),
+      mDistCoef(distCoef), mbf(bf), mThDepth(thDepth),
       mpReferenceKF(static_cast<KeyFrame*>(NULL))
 {
     // Frame ID
@@ -315,10 +320,10 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
         mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/(mnMaxX-mnMinX);
         mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/(mnMaxY-mnMinY);
 
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
+        fx = K(0,0);
+        fy = K(1,1);
+        cx = K(0,2);
+        cy = K(1,2);
         invfx = 1.0f/fx;
         invfy = 1.0f/fy;
 
@@ -332,11 +337,11 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp,
-             ORBextractor* extractor, ORBVocabulary* voc, cv::Mat &K,
-             cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const Eigen::MatrixXf &imGray, const Eigen::MatrixXf &imDepth, const double &timeStamp,
+             ORBextractor* extractor, ORBVocabulary* voc, Eigen::Matrix3f &K,
+             Eigen::VectorXf &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+      mTimeStamp(timeStamp), mK(K),mDistCoef(distCoef), mbf(bf), mThDepth(thDepth)
 {
     // Frame ID
     mnId=nNextId++;
@@ -382,10 +387,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
         mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
         mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
 
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
+        fx = K(0,0);
+        fy = K(1,1);
+        cx = K(0,2);
+        cy = K(1,2);
         invfx = 1.0f/fx;
         invfy = 1.0f/fy;
 
@@ -398,11 +403,11 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imGray, const double &timeStamp,
-             ORBextractor* extractor, ORBVocabulary* voc, cv::Mat &K,
-             cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const Eigen::MatrixXf &imGray, const double &timeStamp,
+             ORBextractor* extractor, ORBVocabulary* voc, Eigen::Matrix3f &K,
+             Eigen::VectorXf &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+      mTimeStamp(timeStamp), mK(K),mDistCoef(distCoef), mbf(bf), mThDepth(thDepth)
 {
     // Frame ID
     mnId=nNextId++;
@@ -448,10 +453,10 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp,
         mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
         mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
 
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
+        fx = K(0,0);
+        fy = K(1,1);
+        cx = K(0,2);
+        cy = K(1,2);
         invfx = 1.0f/fx;
         invfy = 1.0f/fy;
 
@@ -481,41 +486,70 @@ void Frame::AssignFeaturesToGrid()
     }
 }
 
-void Frame::ExtractORB(int flag, const cv::Mat &im)
+void Frame::ExtractORB(int flag, const Eigen::MatrixXf &im)
 {
+  cv::Mat imCV;
+  cv::eigen2cv(im, imCV);
     if(flag==0)
-        (*mpORBextractorLeft)(im,cv::Mat(),mvKeys,mDescriptors);
+        (*mpORBextractorLeft)(imCV,cv::Mat(),mvKeys,getDescriptorCV());
     else
-        (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight);
+        (*mpORBextractorRight)(imCV,cv::Mat(),mvKeysRight,getDescriptorRightCV());
 }
 
-void Frame::SetPose(cv::Mat Tcw)
+void Frame::SetPose(Eigen::MatrixXf Tcw)
 {
-    mTcw = Tcw.clone();
+    mTcw = Tcw;
     UpdatePoseMatrices();
 }
 
+Eigen::MatrixXf Frame::GetPose()
+{
+    return mTcw;
+}
+
 void Frame::UpdatePoseMatrices()
-{ 
-    mRcw = mTcw.rowRange(0,3).colRange(0,3);
-    mRwc = mRcw.t();
-    mtcw = mTcw.rowRange(0,3).col(3);
-    mOw = -mRcw.t()*mtcw;
+{
+    mRcw = mTcw.block<4,4>(0,0);
+    mRwc = mRcw.transpose();
+    mtcw = mTcw.block<4,1>(0,3);
+    mOw = -mRcw.transpose()*mtcw;
 }
 
 //
-cv::Mat Frame::getTwc() {
+Eigen::MatrixXf Frame::getTwc() {
     //
-    cv::Mat Rwc = mTcw.rowRange(0,3).colRange(0,3).t();
-    cv::Mat twc = -Rwc*mTcw.rowRange(0,3).col(3);
+    Eigen::MatrixXf Rwc = mTcw.block<3,3>(0,0).transpose();
+    Eigen::MatrixXf twc = -Rwc*mTcw.block<3,1>(0,3);
     //
-    cv::Mat Twc = cv::Mat::eye(4,4,CV_32F);
+    Eigen::Matrix4f Twc = Eigen::Matrix4f::Identity();
 
-    Rwc.copyTo(Twc.rowRange(0,3).colRange(0,3));
-    twc.copyTo(Twc.rowRange(0,3).col(3));
+    Twc.block<3,3>(0,0) = Rwc;
+    Twc.block<3,1>(0,3) = twc;
 
     return Twc;
 }
+
+cv::Mat Frame::getDescriptorCV()
+{
+  cv::Mat descriptor;
+  cv::eigen2cv(mDescriptors, descriptor);
+  return descriptor;
+}
+
+cv::Mat Frame::getDescriptorRightCV()
+{
+  cv::Mat descriptor;
+  cv::eigen2cv(mDescriptorsRight, descriptor);
+  return descriptor;
+}
+
+cv::Mat Frame::getmkCV()
+{
+  cv::Mat descriptor;
+  cv::eigen2cv(mK, descriptor);
+  return descriptor;
+}
+
 
 void Frame::ExportToYML(cv::FileStorage &fs)
 {
@@ -526,14 +560,14 @@ void Frame::ExportToYML(cv::FileStorage &fs)
     write(fs, "nNextId", double(nNextId));
     write(fs, "mnId", double(mnId));
     write(fs, "mTimeStamp", mTimeStamp);
-    write(fs, "mK", mK);
+    write(fs, "mK", getmkCV());
 
     // only export detection results from right frame
     write(fs, "mvKeys", mvKeys);
-    write(fs, "mDescriptors", mDescriptors);
+    write(fs, "mDescriptors", getDescriptorCV());
     // export detection results from both frames
     write(fs, "mvKeysRight", mvKeysRight);
-    write(fs, "mDescriptorsRight", mDescriptorsRight);
+    write(fs, "mDescriptorsRight", getDescriptorRightCV());
     //    write(fs, "mvuRight", mvuRight);
     //    write(fs, "mvDepth", mvDepth);
 }
@@ -543,13 +577,13 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     pMP->mbTrackInView = false;
 
     // 3D in absolute coordinates
-    cv::Mat P = pMP->GetWorldPos();
+    Eigen::MatrixXf P_Eigen = pMP->GetWorldPosEigen();
 
     // 3D in camera coordinates
-    const cv::Mat Pc = mRcw*P+mtcw;
-    const float &PcX = Pc.at<float>(0);
-    const float &PcY = Pc.at<float>(1);
-    const float &PcZ = Pc.at<float>(2);
+    const Eigen::VectorXf Pc = mRcw*P_Eigen+mtcw;
+    const float &PcX = Pc(0);
+    const float &PcY = Pc(1);
+    const float &PcZ = Pc(2);
 
     // Check positive depth
     if(PcZ<0.0f)
@@ -568,8 +602,8 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     // Check distance is in the scale invariance region of the MapPoint
     const float maxDistance = pMP->GetMaxDistanceInvariance();
     const float minDistance = pMP->GetMinDistanceInvariance();
-    const cv::Mat PO = P-mOw;
-    const float dist = cv::norm(PO);
+    const Eigen::VectorXf PO = P_Eigen-mOw;
+    const float dist = PO.norm();
 
     if(dist<minDistance || dist>maxDistance)
         return false;
@@ -577,7 +611,11 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     // Check viewing angle
     cv::Mat Pn = pMP->GetNormal();
 
-    const float viewCos = PO.dot(Pn)/dist;
+    Eigen::VectorXf Pn_Eigen;
+
+    cv::cv2eigen(Pn, Pn_Eigen);
+
+    const float viewCos = PO.dot(Pn_Eigen)/dist;
 
     if(viewCos<viewingCosLimit)
         return false;
@@ -668,14 +706,16 @@ void Frame::ComputeBoW()
 {
     if(mBowVec.empty())
     {
-        vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
+      cv::Mat mDescriptorsCV;
+      cv::eigen2cv(mDescriptors, mDescriptorsCV);
+        vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptorsCV);
         mpORBvocabulary->transform(vCurrentDesc,mBowVec,mFeatVec,4);
     }
 }
 
 void Frame::UndistortKeyPointsStereo()
 {
-    if(mDistCoef.at<float>(0)==0.0)
+    if(mDistCoef(0)==0.0)
     {
         mvKeysUn=mvKeys;
         mvKeysRightUn=mvKeysRight;
@@ -696,11 +736,18 @@ void Frame::UndistortKeyPointsStereo()
     }
     // Undistort points
     mat=mat.reshape(2);
+
+    cv::Mat mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv;
 #ifdef USE_FISHEYE_DISTORTION
-    cv::fisheye::undistortPoints(mat,mat,mK_ori,mDistCoef,mR,mP);
+    cv::fisheye::undistortPoints(mat,mat,mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv);
 #else
-    cv::undistortPoints(mat,mat,mK_ori,mDistCoef,mR,mP);
+    cv::undistortPoints(mat,mat,mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv);
 #endif
+    cv::cv2eigen(mK_ori_cv, mK_ori);
+    cv::cv2eigen(mDistCoef_cv, mDistCoef);
+    cv::cv2eigen(mR_cv, mR);
+    cv::cv2eigen(mP_cv, mP);
+
     mat=mat.reshape(1);
 
     // Fill undistorted keypoint vector
@@ -726,12 +773,19 @@ void Frame::UndistortKeyPointsStereo()
     }
     // Undistort points
     matR=matR.reshape(2);
+
+    cv::Mat mK_right_cv,mDistCoef_right_cv,mR_right_cv,mP_right_cv;
 #ifdef USE_FISHEYE_DISTORTION
-    cv::fisheye::undistortPoints(matR,matR,mK_right,mDistCoef_right,mR_right,mP_right);
+    cv::fisheye::undistortPoints(matR,matR,mK_right_cv,mDistCoef_right_cv,mR_right_cv,mP_right_cv);
 #else
-    cv::undistortPoints(matR,matR,mK_right,mDistCoef_right,mR_right,mP_right);
+    cv::undistortPoints(matR,matR,mK_right_cv,mDistCoef_right_cv,mR_right_cv,mP_right_cv);
 #endif
     matR=matR.reshape(1);
+
+    cv::cv2eigen(mK_right_cv, mK_right);
+    cv::cv2eigen(mDistCoef_right_cv, mDistCoef_right);
+    cv::cv2eigen(mR_right_cv, mR_right);
+    cv::cv2eigen(mP_right_cv, mP_right);
 
     // Fill undistorted keypoint vector
     mvKeysRightUn.resize(mvKeysRight.size());
@@ -748,7 +802,7 @@ void Frame::UndistortKeyPointsStereo()
 
 void Frame::UndistortKeyPoints()
 {
-    if(mDistCoef.at<float>(0)==0.0)
+    if(mDistCoef(0)==0.0)
     {
         mvKeysUn=mvKeys;
         return;
@@ -764,12 +818,17 @@ void Frame::UndistortKeyPoints()
 
     // Undistort points
     mat=mat.reshape(2);
+
+    cv::Mat mK_cv,mDistCoef_cv;
 #ifdef USE_FISHEYE_DISTORTION
-    cv::fisheye::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+    cv::fisheye::undistortPoints(mat,mat,mK_cv,mDistCoef_cv,cv::Mat(),mK_cv);
 #else
-    cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+    cv::undistortPoints(mat,mat,mK_cv,mDistCoef_cv,cv::Mat(),mK_cv);
 #endif
     mat=mat.reshape(1);
+
+    cv::cv2eigen(mK_cv, mK);
+    cv::cv2eigen(mDistCoef_cv, mDistCoef);
 
     // Fill undistorted keypoint vector
     mvKeysUn.resize(N);
@@ -782,11 +841,11 @@ void Frame::UndistortKeyPoints()
     }
 }
 
-void Frame::ComputeImageBounds(const cv::Mat &imLeft)
+void Frame::ComputeImageBounds(const Eigen::MatrixXf &imLeft)
 {
-    if(mDistCoef.at<float>(0)!=0.0)
+    if(mDistCoef(0)!=0.0)
     {
-        //        cv::Mat mat(4,2,CV_32F);
+        //        Eigen::MatrixXf mat(4,2,CV_32F);
         //        mat.at<float>(0,0)=0.0; mat.at<float>(0,1)=0.0;
         //        mat.at<float>(1,0)=imLeft.cols; mat.at<float>(1,1)=0.0;
         //        mat.at<float>(2,0)=0.0; mat.at<float>(2,1)=imLeft.rows;
@@ -795,30 +854,35 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
         cv::Mat mat(8,2,CV_32F);
         mat.at<float>(0,0)=0.0;
         mat.at<float>(0,1)=0.0;
-        mat.at<float>(1,0)=imLeft.cols;
+        mat.at<float>(1,0)=imLeft.cols();
         mat.at<float>(1,1)=0.0;
         mat.at<float>(2,0)=0.0;
-        mat.at<float>(2,1)=imLeft.rows;
-        mat.at<float>(3,0)=imLeft.cols;
-        mat.at<float>(3,1)=imLeft.rows;
+        mat.at<float>(2,1)=imLeft.rows();
+        mat.at<float>(3,0)=imLeft.cols();
+        mat.at<float>(3,1)=imLeft.rows();
         //
         mat.at<float>(4,0)=0.0;
-        mat.at<float>(4,1)=float(imLeft.rows) / 2.0;
-        mat.at<float>(5,0)=float(imLeft.cols) / 2.0;
+        mat.at<float>(4,1)=float(imLeft.rows()) / 2.0;
+        mat.at<float>(5,0)=float(imLeft.cols()) / 2.0;
         mat.at<float>(5,1)=0.0;
-        mat.at<float>(6,0)=float(imLeft.cols) / 2.0;
-        mat.at<float>(6,1)=imLeft.rows;
-        mat.at<float>(7,0)=imLeft.cols;
-        mat.at<float>(7,1)=float(imLeft.rows) / 2.0;
+        mat.at<float>(6,0)=float(imLeft.cols()) / 2.0;
+        mat.at<float>(6,1)=imLeft.rows();
+        mat.at<float>(7,0)=imLeft.cols();
+        mat.at<float>(7,1)=float(imLeft.rows()) / 2.0;
 
         // Undistort corners
         mat=mat.reshape(2);
+
+        cv::Mat mK_cv,mDistCoef_cv;
 #ifdef USE_FISHEYE_DISTORTION
-        cv::fisheye::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+        cv::fisheye::undistortPoints(mat,mat,mK_cv,mDistCoef_cv,cv::Mat(),mK_cv);
 #else
-        cv::undistortPoints(mat,mat,mK,mDistCoef,cv::Mat(),mK);
+        cv::undistortPoints(mat,mat,mK_cv,mDistCoef_cv,cv::Mat(),mK_cv);
 #endif
         mat=mat.reshape(1);
+
+        cv::cv2eigen(mK_cv, mK);
+        cv::cv2eigen(mDistCoef_cv, mDistCoef);
 
         //        mnMinX = min(mat.at<float>(0,0),mat.at<float>(2,0));
         //        mnMaxX = max(mat.at<float>(1,0),mat.at<float>(3,0));
@@ -846,43 +910,50 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
     else
     {
         mnMinX = 0.0f;
-        mnMaxX = imLeft.cols;
+        mnMaxX = imLeft.cols();
         mnMinY = 0.0f;
-        mnMaxY = imLeft.rows;
+        mnMaxY = imLeft.rows();
     }
 }
 
-void Frame::ComputeImageBoundsStereo(const cv::Mat &imLeft) {
+void Frame::ComputeImageBoundsStereo(const Eigen::MatrixXf &imLeft) {
 
-    if(mDistCoef.at<float>(0)!=0.0)
+    if(mDistCoef(0)!=0.0)
     {
         cv::Mat mat(8,2,CV_32F);
         mat.at<float>(0,0)=0.0;
         mat.at<float>(0,1)=0.0;
-        mat.at<float>(1,0)=imLeft.cols;
+        mat.at<float>(1,0)=imLeft.cols();
         mat.at<float>(1,1)=0.0;
         mat.at<float>(2,0)=0.0;
-        mat.at<float>(2,1)=imLeft.rows;
-        mat.at<float>(3,0)=imLeft.cols;
-        mat.at<float>(3,1)=imLeft.rows;
+        mat.at<float>(2,1)=imLeft.rows();
+        mat.at<float>(3,0)=imLeft.cols();
+        mat.at<float>(3,1)=imLeft.rows();
         //
         mat.at<float>(4,0)=0.0;
-        mat.at<float>(4,1)=float(imLeft.rows) / 2.0;
-        mat.at<float>(5,0)=float(imLeft.cols) / 2.0;
+        mat.at<float>(4,1)=float(imLeft.rows()) / 2.0;
+        mat.at<float>(5,0)=float(imLeft.cols()) / 2.0;
         mat.at<float>(5,1)=0.0;
-        mat.at<float>(6,0)=float(imLeft.cols) / 2.0;
-        mat.at<float>(6,1)=imLeft.rows;
-        mat.at<float>(7,0)=imLeft.cols;
-        mat.at<float>(7,1)=float(imLeft.rows) / 2.0;
+        mat.at<float>(6,0)=float(imLeft.cols()) / 2.0;
+        mat.at<float>(6,1)=imLeft.rows();
+        mat.at<float>(7,0)=imLeft.cols();
+        mat.at<float>(7,1)=float(imLeft.rows()) / 2.0;
 
         // Undistort corners
         mat=mat.reshape(2);
+
+        cv::Mat mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv;
 #ifdef USE_FISHEYE_DISTORTION
-        cv::fisheye::undistortPoints(mat,mat,mK_ori,mDistCoef,mR,mP);
+        cv::fisheye::undistortPoints(mat,mat,mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv);
 #else
-        cv::undistortPoints(mat,mat,mK_ori,mDistCoef,mR,mP);
+        cv::undistortPoints(mat,mat,mK_ori_cv,mDistCoef_cv,mR_cv,mP_cv);
 #endif
         mat=mat.reshape(1);
+
+        cv::cv2eigen(mK_ori_cv, mK_ori);
+        cv::cv2eigen(mDistCoef_cv, mDistCoef);
+        cv::cv2eigen(mR_cv, mR);
+        cv::cv2eigen(mP_cv, mP);
 
         mnMinX = INT_MAX;
         mnMaxX = INT_MIN;
@@ -905,9 +976,9 @@ void Frame::ComputeImageBoundsStereo(const cv::Mat &imLeft) {
     else
     {
         mnMinX = 0.0f;
-        mnMaxX = imLeft.cols;
+        mnMaxX = imLeft.cols();
         mnMinY = 0.0f;
-        mnMaxY = imLeft.rows;
+        mnMaxY = imLeft.rows();
     }
 }
 
@@ -971,7 +1042,8 @@ void Frame::ComputeStereoMatches()
         int bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
-        const cv::Mat &dL = mDescriptors.row(iL);
+        cv::Mat dL;
+        cv::eigen2cv(mDescriptorsRight, dL);
 
         // Compare descriptor to right keypoints
         for(size_t iC=0; iC<vCandidates.size(); iC++)
@@ -986,8 +1058,10 @@ void Frame::ComputeStereoMatches()
 
             if(uR>=minU && uR<=maxU)
             {
-                const cv::Mat &dR = mDescriptorsRight.row(iR);
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                cv::Mat dR;
+                cv::eigen2cv(mDescriptorsRight, dR);
+
+                const int dist = ORBmatcher::DescriptorDistance(dL.row(iL),dR.row(iR));
 
                 if(dist<bestDist)
                 {
@@ -1014,7 +1088,7 @@ void Frame::ComputeStereoMatches()
             const int w = 5;
 #ifdef CUDA_ACC_FAST
             cv::cuda::GpuMat gMat = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL - w, scaledvL + w + 1).colRange(scaleduL - w, scaleduL + w + 1);
-            cv::Mat IL(gMat.rows, gMat.cols, gMat.type(), gMat.data, gMat.step);
+            Eigen::MatrixXf IL(gMat.rows, gMat.cols, gMat.type(), gMat.data, gMat.step);
 #else
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
 #endif
@@ -1036,7 +1110,7 @@ void Frame::ComputeStereoMatches()
             {
 #ifdef CUDA_ACC_FAST
                 cv::cuda::GpuMat gMat = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL - w, scaledvL + w + 1).colRange(scaleduR0 + incR - w, scaleduR0 + incR + w + 1);
-                cv::Mat IR(gMat.rows, gMat.cols, gMat.type(), gMat.data, gMat.step);
+                Eigen::MatrixXf IR(gMat.rows, gMat.cols, gMat.type(), gMat.data, gMat.step);
 #else
                 cv::Mat IR = mpORBextractorRight->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduR0+incR-w,scaleduR0+incR+w+1);
 #endif
@@ -1138,7 +1212,8 @@ bool Frame::ComputeStereoMatch_OnePoint(const int iL, const int thOrbDist, const
     int bestDist = ORBmatcher::TH_HIGH;
     size_t bestIdxR = 0;
 
-    const cv::Mat &dL = mDescriptors.row(iL);
+    cv::Mat dL;
+    cv::eigen2cv(mDescriptorsRight, dL);
 
     // Compare descriptor to right keypoints
     for(size_t iC=0; iC<vCandidates.size(); iC++)
@@ -1153,8 +1228,10 @@ bool Frame::ComputeStereoMatch_OnePoint(const int iL, const int thOrbDist, const
 
         if(uR>=minU && uR<=maxU)
         {
-            const cv::Mat &dR = mDescriptorsRight.row(iR);
-            const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+            cv::Mat dR;
+            cv::eigen2cv(mDescriptorsRight, dR);
+
+            const int dist = ORBmatcher::DescriptorDistance(dL.row(iL),dR.row(iR));
 
             if(dist<bestDist)
             {
@@ -1245,10 +1322,12 @@ int Frame::ComputeStereoMatches_Undistorted(bool isOnline)
         if (this->mvpMapPoints[iL] != NULL) {
             MapPoint * pMP = this->mvpMapPoints[iL];
             if (!pMP->isBad()) {
-                cv::Mat Pw = pMP->GetWorldPos(), Pc;
-                if (WorldToCameraPoint(Pw, Pc) == true) {
+              Eigen::MatrixXf Pw_Eigen = pMP->GetWorldPosEigen();
+              Eigen::MatrixXf Pc_Eigen;
+
+                if (WorldToCameraPoint(Pw_Eigen, Pc_Eigen) == true) {
                     //
-                    float disp = float(mbf) / Pc.at<float>(2);
+                    float disp = float(mbf) / Pc_Eigen(2);
                     minD = std::max(disp - float(DISPARITY_THRES), 0.0f);
                     maxD = std::min(disp + float(DISPARITY_THRES), float(mbf)/float(mb));
                 }
@@ -1264,7 +1343,8 @@ int Frame::ComputeStereoMatches_Undistorted(bool isOnline)
         int bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
-        const cv::Mat &dL = mDescriptors.row(iL);
+        const cv::Mat dL;
+        cv::eigen2cv(mDescriptorsRight, dL);
 
         // Compare descriptor to right keypoints
         for(size_t iC=0; iC<vCandidates.size(); iC++)
@@ -1279,8 +1359,9 @@ int Frame::ComputeStereoMatches_Undistorted(bool isOnline)
 
             if(uR>=minU && uR<=maxU)
             {
-                const cv::Mat &dR = mDescriptorsRight.row(iR);
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                const cv::Mat dR;
+                cv::eigen2cv(mDescriptorsRight, dR);
+                const int dist = ORBmatcher::DescriptorDistance(dL.row(iL),dR.row(iR));
 
                 if(dist<bestDist)
                 {
@@ -1400,10 +1481,13 @@ int Frame::ComputeStereoMatches_Undistorted_ByBucketing(bool isOnline)
         if (this->mvpMapPoints[iL] != NULL) {
             MapPoint * pMP = this->mvpMapPoints[iL];
             if (!pMP->isBad()) {
-                cv::Mat Pw = pMP->GetWorldPos(), Pc;
-                if (WorldToCameraPoint(Pw, Pc) == true) {
+              Eigen::MatrixXf Pw_Eigen = pMP->GetWorldPosEigen();
+              Eigen::MatrixXf Pc_Eigen;
+
+
+              if (WorldToCameraPoint(Pw_Eigen, Pc_Eigen) == true) {
                     //
-                    float disp = float(mbf) / Pc.at<float>(2);
+                    float disp = float(mbf) / Pc_Eigen(2);
                     minD = std::max(disp - float(DISPARITY_THRES), 0.0f);
                     maxD = std::min(disp + float(DISPARITY_THRES), float(mbf)/float(mb));
                 }
@@ -1419,7 +1503,8 @@ int Frame::ComputeStereoMatches_Undistorted_ByBucketing(bool isOnline)
         int bestDist = ORBmatcher::TH_HIGH;
         size_t bestIdxR = 0;
 
-        const cv::Mat &dL = mDescriptors.row(iL);
+        cv::Mat dL;
+        cv::eigen2cv(mDescriptorsRight, dL);
 
         // Compare descriptor to right keypoints
         for(size_t iC=0; iC<vCandidates.size(); iC++)
@@ -1434,8 +1519,10 @@ int Frame::ComputeStereoMatches_Undistorted_ByBucketing(bool isOnline)
 
             if(uR>=minU && uR<=maxU)
             {
-                const cv::Mat &dR = mDescriptorsRight.row(iR);
-                const int dist = ORBmatcher::DescriptorDistance(dL,dR);
+                cv::Mat dR;
+                cv::eigen2cv(mDescriptorsRight, dR);
+
+                const int dist = ORBmatcher::DescriptorDistance(dL.row(iL),dR.row(iR));
 
                 if(dist<bestDist)
                 {
@@ -1628,7 +1715,7 @@ void Frame::GetUnMatchedKPbyBucketing(const Frame *pFrame, std::vector<unsigned 
 }
 
 
-void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
+void Frame::ComputeStereoFromRGBD(const Eigen::MatrixXf &imDepth)
 {
     mvuRight = vector<float>(N,-1);
     mvDepth = vector<float>(N,-1);
@@ -1641,7 +1728,7 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
         const float &v = kp.pt.y;
         const float &u = kp.pt.x;
 
-        const float d = imDepth.at<float>(v,u);
+        const float d = imDepth(v,u);
 
         if(d>0)
         {
@@ -1651,7 +1738,7 @@ void Frame::ComputeStereoFromRGBD(const cv::Mat &imDepth)
     }
 }
 
-cv::Mat Frame::UnprojectStereo(const int &i)
+Eigen::MatrixXf Frame::UnprojectStereo(const int &i)
 {
     const float z = mvDepth[i];
     if(z>0)
@@ -1660,11 +1747,12 @@ cv::Mat Frame::UnprojectStereo(const int &i)
         const float v = mvKeysUn[i].pt.y;
         const float x = (u-cx)*z*invfx;
         const float y = (v-cy)*z*invfy;
-        cv::Mat x3Dc = (cv::Mat_<float>(3,1) << x, y, z);
+        Eigen::MatrixXf x3Dc(3,1);
+        x3Dc <<  x, y, z;
         return mRwc*x3Dc+mOw;
     }
     else
-        return cv::Mat();
+        return Eigen::MatrixXf();
 }
 
 
@@ -1674,7 +1762,8 @@ void Frame::plotStereoDetection(const cv::Mat &imLeft, const cv::Mat &imRight,
 
     // create new image to modify it
     cv::Mat img_l_aux,img_l_aux1,img_l_aux2;
-    //cv::Mat img_l_aux;
+
+    //Eigen::MatrixXf img_l_aux;
     imLeft.copyTo( img_l_aux2 );
     imRight.copyTo( img_l_aux1 );
     if( img_l_aux1.channels() == 1 )
@@ -1718,8 +1807,7 @@ void Frame::plotStereoDetection(const cv::Mat &imLeft, const cv::Mat &imRight,
                 2.0, // Scale. 2.0 = 2x bigger
                 cv::Scalar(0,0,255), // Color
                 2); // Thickness
-
-    img_l_aux.copyTo(imRes);
+    imRes = img_l_aux;
 }
 
 
@@ -1727,9 +1815,9 @@ void Frame::plotStereoDetection(const cv::Mat &imLeft, const cv::Mat &imRight,
 void Frame::plotStereoMatching(const cv::Mat &imLeft, const cv::Mat &imRight,
                                cv::Mat &imRes) {
 
-    // create new image to modify it
     cv::Mat img_l_aux,img_l_aux1,img_l_aux2;
-    //cv::Mat img_l_aux;
+
+    //Eigen::MatrixXf img_l_aux;
     imLeft.copyTo( img_l_aux2 );
     imRight.copyTo( img_l_aux1 );
     if( img_l_aux1.channels() == 1 )
@@ -1772,7 +1860,7 @@ void Frame::plotStereoMatching(const cv::Mat &imLeft, const cv::Mat &imRight,
                 cv::Scalar(0,0,255), // Color
                 2); // Thickness
 
-    img_l_aux.copyTo(imRes);
+    imRes = img_l_aux;
 }
 
 } // namespace ORB_SLAM2
