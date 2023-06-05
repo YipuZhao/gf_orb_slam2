@@ -8,6 +8,7 @@ Examples/ROS/GF_ORB_SLAM2/Mono
 Examples/ROS/GF_ORB_SLAM2/MonoAR
 Examples/ROS/GF_ORB_SLAM2/RGBD
 Examples/ROS/GF_ORB_SLAM2/Stereo
+Examples/ROS/GF_ORB_SLAM2/StereoFeatures
 Examples/ROS/GF_ORB_SLAM2/build/
 Examples/Stereo/stereo_euroc
 Examples/Stereo/stereo_kitti
