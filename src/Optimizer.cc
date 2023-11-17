@@ -1140,8 +1140,8 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
 
 #endif
         // start good graph
-        printf("Good Graph Triggered -------------\n");
-        printf("total num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
+        // printf("Good Graph Triggered -------------\n");
+        // printf("total num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
         //        printf("target num. of camera poses = %d\n", szGoodGraph);
         //    optimizer.Dump_Graph("graph_orig.graph");
 
@@ -1154,7 +1154,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         // perfrom subgraph selection
         // reduce the graph to meet cardinality constr. szGoodGraph
         double logdt = good_grapher.Find_Subgraph(szGoodGraph, 1, idx_reserve_);
-        std::cout << "logDet(S) = " << logdt << std::endl;
+        // std::cout << "logDet(S) = " << logdt << std::endl;
         //        good_grapher.Show_Stats();
         good_grapher.Dump_TimeLog(time_log.time_gg_jacobian, time_log.time_gg_preproc, time_log.time_gg_schur, time_log.time_gg_rnd_query,
                                   time_log.time_gg_permute, time_log.time_gg_cholesky, time_log.time_gg_postproc);
@@ -1234,7 +1234,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         //
         num_fixed_KF = lFixedCameras.size();
 
-        printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
+        // printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
 
 #ifdef GOOD_GRAPH_TIME_LOGGING
         time_log.time_gg_optimization += timer.toc();
@@ -1649,7 +1649,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
     //
     num_fixed_KF = lFixedCameras.size();
 
-    printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
+    // printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
 
     // Setup optimizer
     g2o::SparseOptimizer optimizer;

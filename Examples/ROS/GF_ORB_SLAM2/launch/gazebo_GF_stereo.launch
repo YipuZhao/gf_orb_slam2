@@ -1,0 +1,17 @@
+<launch>
+
+<arg name="path_slam_config" default = "/home/yipuzhao/ros_workspace/package_dir/ORB_Data/"/>
+<arg name="path_track_logging" default = "/mnt/DATA/tmp/ClosedNav/debug"/>
+<arg name="path_map_logging" default = "/mnt/DATA/tmp/ClosedNav/debug_Map"/>
+<arg name="num_good_feature" default = "180" />
+<arg name="do_rectify" default = "true" />
+<arg name="do_vis" default = "false" />
+<arg name="slam_pose_topic" default="/visual/pose"/>
+
+<!-- call GF-ORB-SLAM for vision-based state estimation --> 
+<!-- Note DON'T enable on-screen output for GF-SLAM! otherwise it will lead to  --> 
+<node pkg="gf_orb_slam2" type="Stereo" name="visual_slam" args="$(arg path_slam_config)/ORBvoc.bin $(arg path_slam_config)/Gazebo_yaml/pinhole_stereo.yaml $(arg num_good_feature) $(arg do_rectify) $(arg do_vis) /multisense_sl/camera/left/image_raw /multisense_sl/camera/right/image_raw $(arg path_track_logging) $(arg path_map_logging)" output="screen">
+    <remap from="ORB_SLAM/camera_pose_in_imu" to="$(arg slam_pose_topic)"/>
+</node>
+
+</launch>

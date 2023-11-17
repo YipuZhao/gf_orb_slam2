@@ -39,6 +39,11 @@
 #include "geometry_msgs/TransformStamped.h"
 #include "tf/transform_datatypes.h"
 #include <tf/transform_broadcaster.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 //
 //#include "path_smoothing_ros/cubic_spline_interpolator.h"
@@ -56,7 +61,7 @@ using namespace std;
 class ImageGrabber
 {
 public:
-    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM){
+    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM), tfli_(tf_buffer_) {
 #ifdef MAP_PUBLISH
       mnMapRefreshCounter = 0;
 #endif
@@ -68,6 +73,8 @@ public:
 
     void GrabPath(const nav_msgs::Path::ConstPtr    & msg);
 
+    void PostProcess(const ros::Time& time, const geometry_msgs::Pose& wTc);
+
     ORB_SLAM2::System* mpSLAM;
     bool do_rectify;
     cv::Mat M1l,M2l,M1r,M2r;
@@ -77,6 +84,19 @@ public:
 
     ros::Publisher mpCameraPosePublisher, mpCameraPoseInIMUPublisher;
     //    ros::Publisher mpDensePathPub;
+    
+    bool enable_map_to_odom_tf{false};
+    ros::Publisher camera_path_publisher, camera_pose_publisher;
+    nav_msgs::Path camera_path;
+    std::string map_frame_{"map"};
+    std::string odom_frame_{"odom"};
+    std::string camera_frame_{"camera"};
+    std::string base_frame_{"base_footprint"};
+    std::string fixed_frame_{"fixed"};
+    tf2_ros::StaticTransformBroadcaster static_br_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformBroadcaster tfbr_;
+    tf2_ros::TransformListener tfli_;
     
 #ifdef MAP_PUBLISH
     size_t mnMapRefreshCounter;
@@ -122,6 +142,10 @@ public:
             myfile.close();
         }
     }
+
+    Eigen::Matrix4d Ros2Eigen(const geometry_msgs::Transform& tf);
+    Eigen::Matrix4d Ros2Eigen(const geometry_msgs::Pose& pose);
+    geometry_msgs::Transform Eigen2Ros(const Eigen::Matrix4d& pose);
     
 };
 
@@ -247,6 +271,12 @@ int main(int argc, char **argv)
     // figure out the proper queue size
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
+
+    if (igb.enable_map_to_odom_tf)
+    {
+        igb.camera_pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("/gfgg/pose", 10);
+        igb.camera_path_publisher = nh.advertise<nav_msgs::Path>("/gfgg/path", 10);
+    }
 
 #ifdef FRAME_WITH_INFO_PUBLISH
     igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
@@ -440,7 +470,7 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
     {
         return;
     }
-    ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
+    // ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
 
 /*
     // std::cout << "broadcast pose!" << std::endl;
@@ -526,6 +556,12 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
     
     mpCameraPosePublisher.publish(camera_odom);
 
+    if (enable_map_to_odom_tf)
+    {
+        camera_frame_ = msgLeft->header.frame_id;
+        PostProcess(cv_ptrLeft->header.stamp, camera_pose);
+    }
+
 //
 // by default, an additional transform is applied to make camera pose and body frame aligned
 // which is assumed in msf
@@ -607,4 +643,90 @@ double latency_trans = ros::Time::now().toSec() - msgLeft->header.stamp.toSec();
     mnMapRefreshCounter ++;
 #endif
 
+}
+
+void ImageGrabber::PostProcess(const ros::Time& time, const geometry_msgs::Pose& wTc)
+{
+    {
+        geometry_msgs::PoseStamped pose_msg;
+        pose_msg.header.frame_id = fixed_frame_;
+        pose_msg.header.stamp = time;
+        pose_msg.pose = wTc;
+        camera_pose_publisher.publish(pose_msg);
+
+        camera_path.header = pose_msg.header;
+        camera_path.poses.push_back(pose_msg);
+        camera_path_publisher.publish(camera_path);
+    }
+
+     // Define map that aligns with base_frame
+    static bool is_map_defined = false;
+    static Eigen::Matrix4d mTw = Eigen::Matrix4d::Identity();
+    if (!is_map_defined) {
+        geometry_msgs::TransformStamped base_to_cam = tf_buffer_.lookupTransform(
+            base_frame_, camera_frame_, time, ros::Duration(0.2));
+        mTw = Ros2Eigen(base_to_cam.transform);
+    //   writer_.Write("camera_extrinsic", Tmw);
+
+        base_to_cam.header.frame_id = map_frame_;
+        base_to_cam.header.stamp = time;
+        base_to_cam.child_frame_id = fixed_frame_;
+        static_br_.sendTransform(base_to_cam);
+        is_map_defined = true;
+    }
+
+    // Publish map to odom.
+    const Eigen::Matrix4d mTc = mTw * Ros2Eigen(wTc);
+    const geometry_msgs::TransformStamped cam_to_odom =
+        tf_buffer_.lookupTransform(
+            camera_frame_, odom_frame_, time, ros::Duration(0.2));
+    geometry_msgs::TransformStamped map_to_odom;
+    map_to_odom.header.frame_id = map_frame_;
+    map_to_odom.header.stamp = time + ros::Duration(0.5);
+    map_to_odom.child_frame_id = odom_frame_;
+    map_to_odom.transform = Eigen2Ros(mTc * Ros2Eigen(cam_to_odom.transform));
+    tfbr_.sendTransform(map_to_odom);
+}
+
+Eigen::Matrix4d ImageGrabber::Ros2Eigen(const geometry_msgs::Transform& tf)
+{
+    Eigen::Matrix4d out = Eigen::Matrix4d::Identity();
+    out.topLeftCorner(3, 3) = Eigen::Quaterniond(
+        tf.rotation.w,
+        tf.rotation.x,
+        tf.rotation.y,
+        tf.rotation.z
+    ).toRotationMatrix();
+    out.topRightCorner(3, 1) = Eigen::Vector3d(tf.translation.x, tf.translation.y, tf.translation.z);
+    return out;
+}
+Eigen::Matrix4d ImageGrabber::Ros2Eigen(const geometry_msgs::Pose& pose)
+{
+    Eigen::Matrix4d out = Eigen::Matrix4d::Identity();
+    out.topLeftCorner(3, 3) = Eigen::Quaterniond(
+        pose.orientation.w,
+        pose.orientation.x,
+        pose.orientation.y,
+        pose.orientation.z
+    ).toRotationMatrix();
+    out.topRightCorner(3, 1) = Eigen::Vector3d(
+        pose.position.x,
+        pose.position.y,
+        pose.position.z);
+    return out;
+    
+}
+geometry_msgs::Transform ImageGrabber::Eigen2Ros(const Eigen::Matrix4d& pose)
+{
+    geometry_msgs::Transform out;
+    out.translation.x = pose(0, 3);
+    out.translation.y = pose(1, 3);
+    out.translation.z = pose(2, 3);
+    const Eigen::Quaterniond quat(
+        Eigen::Matrix3d(pose.topLeftCorner(3, 3)));
+    out.rotation.x = quat.x();
+    out.rotation.y = quat.y();
+    out.rotation.z = quat.z();
+    out.rotation.w = quat.w();
+    return out;
 }

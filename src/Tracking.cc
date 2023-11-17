@@ -1333,11 +1333,11 @@ void Tracking::Track()
     mFrameTimeLog.push_back(logCurrentFrame);
     //    cout << "Done with tracking!" << endl;
 
-    std::cout << "Time cost break down: " << std::endl
-              << "ORB extraction " << logCurrentFrame.time_ORB_extraction << "; "
-              << "Init tracking " << logCurrentFrame.time_track_motion + logCurrentFrame.time_track_frame << "; "
-              << "Map tracking " << logCurrentFrame.time_track_map << "; "
-              << "Post proc. " << logCurrentFrame.time_post_proc << std::endl;
+    // std::cout << "Time cost break down: " << std::endl
+    //           << "ORB extraction " << logCurrentFrame.time_ORB_extraction << "; "
+    //           << "Init tracking " << logCurrentFrame.time_track_motion + logCurrentFrame.time_track_frame << "; "
+    //           << "Map tracking " << logCurrentFrame.time_track_map << "; "
+    //           << "Post proc. " << logCurrentFrame.time_post_proc << std::endl;
 
 }
 
