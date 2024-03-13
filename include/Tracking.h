@@ -354,6 +354,7 @@ public:
     bool mbMapHashTriggered;
     
     void Reset();
+    void appendMatrixToTextFile(const cv::Mat& matrix, const std::string& filename, double timestamp);
 
     inline void ResetInitNumFrame()
     {

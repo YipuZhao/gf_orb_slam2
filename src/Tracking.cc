@@ -26,6 +26,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "ORBmatcher.h"
 #include "FrameDrawer.h"
@@ -1764,7 +1765,7 @@ void Tracking::UpdateLastFrame()
 
 bool Tracking::PredictRelMotionFromBuffer(const double & time_prev, const double & time_curr,
                                           cv::Mat & T_rel) {
-
+    std::cout << " motion prior get " << std::endl;
     if (mvOdomBuf.empty() || time_curr < mvOdomBuf[0].time_stamp && time_prev > mvOdomBuf.back().time_stamp)
         return false;
 //    cout << "current time: " << time_curr << " vs. " << mvOdomBuf[0].time_stamp << endl;
@@ -1772,15 +1773,19 @@ bool Tracking::PredictRelMotionFromBuffer(const double & time_prev, const double
 
     int Nodom = mvOdomBuf.size();
     std::cout << "mOdomTrackIdx = " << mOdomTrackIdx << "; Nodom = " << Nodom << std::endl;
-    if (mOdomTrackIdx < 0 || mOdomTrackIdx >= Nodom)
+    if (mOdomTrackIdx < 0 || mOdomTrackIdx >= Nodom){
+        cout << " stamp 1 " << endl;
         return false;
+    }
 
 //        cout << mvOdomBuf[mOdomTrackIdx].time_stamp  << " vs. " << time_prev << endl;
     while (mvOdomBuf[mOdomTrackIdx].time_stamp < time_prev) {
         // move forward to the odom wrt time_prev
         mOdomTrackIdx ++;
-        if (mOdomTrackIdx == Nodom)
+        if (mOdomTrackIdx == Nodom){
+            cout << " stamp 2 " << endl;
             return false;
+        }
     }
 
     cv::Mat Twc_base;
@@ -1790,13 +1795,14 @@ bool Tracking::PredictRelMotionFromBuffer(const double & time_prev, const double
 //    Rwc.copyTo(Twc_base.rowRange(0, 3).colRange(0, 3));
 //    twc.copyTo(Twc_base.rowRange(0, 3).col(3));
     Twc_base = mvOdomBuf[mOdomTrackIdx].Twc;
-//        cout << "Twc_base = " << Twc_base << endl;
+        cout << "Twc_base = " << Twc_base << endl;
     //
     for (int i = mOdomTrackIdx; i < Nodom; ++i) {
-        //            cout << setprecision(12) << mvOdomBuf[i].first << " vs. " << pKF->mTimeStamp + vn * VIRTUAL_KF_INTEVAL << endl;
+                    cout <<" stamp 3 " << endl;
         // find the closest odom to pKF->mTimeStamp + VIRTUAL_KF_INTEVAL * (vn+1)
         if (mvOdomBuf[i].time_stamp >= time_curr) {
             // jump to the timestamp close to current frame
+            cout << " stamp 4" << endl;
             mOdomTrackIdx = i;
             //                    Tcw_base = mvOdomBuf[i].second.inv();
             // Trel = Tcw_current * Twc_prev
@@ -1843,11 +1849,18 @@ bool Tracking::TrackWithMotionModel()
     //#endif
 
 #ifdef PRED_WITH_ODOM
+
+            cv::Mat nmp_pose = mVelocity*mLastFrame.mTcw;
+            std::cout << " nmp appears" << std::endl;
+            std::string filename2 = "/home/hsuanpin/resultgatherfile/SLAM_motionprior_middlepose/nmp.txt";
+            appendMatrixToTextFile(nmp_pose, filename2, mCurrentFrame.mTimeStamp);
+            
             // cout << "Previous mVelocity = " << endl << mVelocity << endl;
             //
             // NOTE
             // When connecting to PiPS planner, simply call recall function to query the desired relative motion
             cv::Mat mVelocity_tmp = cv::Mat(4,4,CV_32F);
+        
 #ifdef ENABLE_PLANNER_PREDICTION
             if (PredictRelMotionFromCallback(mLastFrame.mTimeStamp,
                                              mCurrentFrame.mTimeStamp,
@@ -1860,7 +1873,9 @@ bool Tracking::TrackWithMotionModel()
                                            mVelocity_tmp)) {
 #endif
                 // cout << "mVelocity_tmp = " << endl << mVelocity_tmp << endl;
+                cout << "before mVelocity_tmp = " << endl << mVelocity << endl;
                 mVelocity = mVelocity_tmp;
+                cout << "after mVelocity_tmp = " << endl << mVelocity << endl;
             }
             else {
                 // do nothing
@@ -1869,6 +1884,9 @@ bool Tracking::TrackWithMotionModel()
 #endif
 
 
+    cv::Mat mp_pose = mVelocity*mLastFrame.mTcw;
+    std::string filename1 = "/home/hsuanpin/resultgatherfile/SLAM_motionprior_middlepose/mp.txt";
+    appendMatrixToTextFile(mp_pose, filename1, mCurrentFrame.mTimeStamp);
 
     mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
 
@@ -1967,6 +1985,9 @@ bool Tracking::TrackWithMotionModel()
 
     return nmatchesMap>=10;
 }
+
+// Function to append a matrix to a text file
+
 
 bool Tracking::TrackLocalMap()
 {
@@ -3464,6 +3485,35 @@ void Tracking::Reset()
 
     if(mpViewer)
         mpViewer->Release();
+}
+
+void Tracking::appendMatrixToTextFile(const cv::Mat& matrix, const std::string& filename, double timestamp)
+{
+    std::ofstream outFile(filename, std::ios::out | std::ios::app); // Open in append mode
+    if (!outFile) {
+        std::cerr << "Error opening file " << filename << " for append." << std::endl;
+        return;
+    }
+    
+    // Compute the inverse of the input matrix
+    cv::Mat inverseMatrix = matrix.inv();
+
+    // Extract translation (position) from the inverse matrix
+    cv::Point3f position(inverseMatrix.at<float>(0,3), inverseMatrix.at<float>(1,3), inverseMatrix.at<float>(2,3));
+    
+    // Extract rotation matrix from the inverse matrix
+    cv::Mat R = inverseMatrix(cv::Range(0, 3), cv::Range(0, 3));
+    
+    // Convert rotation matrix to quaternion [qx, qy, qz, qw]
+    std::vector<float> q = ORB_SLAM2::Converter::toQuaternion(R);
+    
+    // Append timestamp, position, and quaternion to file in TUM format
+    outFile << timestamp << " " 
+            << position.x << " " << position.y << " " << position.z << " "
+            << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << std::endl;
+    
+    outFile.close();
+    std::cout << "Inverse pose saved in TUM format." << std::endl;
 }
 
 void Tracking::ChangeCalibration(const string &strSettingPath)

@@ -37,11 +37,13 @@
 #include "nav_msgs/Odometry.h"
 #include "nav_msgs/Path.h"
 #include "geometry_msgs/TransformStamped.h"
+#include <geometry_msgs/PoseStamped.h>
 #include "tf/transform_datatypes.h"
 #include <tf/transform_broadcaster.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -61,7 +63,7 @@ using namespace std;
 class ImageGrabber
 {
 public:
-    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM), tfli_(tf_buffer_) {
+    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM), tfli_(tf_buffer_){
 #ifdef MAP_PUBLISH
       mnMapRefreshCounter = 0;
 #endif
@@ -70,6 +72,7 @@ public:
     void GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const sensor_msgs::ImageConstPtr& msgRight);
     
     void GrabOdom(const nav_msgs::Odometry::ConstPtr& msg);
+    void GrabFuse(const nav_msgs::Odometry::ConstPtr& msg);
 
     void GrabPath(const nav_msgs::Path::ConstPtr    & msg);
 
@@ -263,8 +266,9 @@ int main(int argc, char **argv)
     sync.registerCallback(boost::bind(&ImageGrabber::GrabStereo, &igb, _1, _2));
     
     //
-    // ros::Subscriber sub = nh.subscribe("/odom", 100, &ImageGrabber::GrabOdom, &igb);
-    ros::Subscriber sub = nh.subscribe("/desired_path", 100, &ImageGrabber::GrabPath, &igb);
+    ros::Subscriber odomsub = nh.subscribe("/odometry/filtered", 100, &ImageGrabber::GrabFuse, &igb);
+    //ros::Subscriber odomsub = nh.subscribe("/odom", 100, &ImageGrabber::GrabFuse, &igb);
+    //ros::Subscriber sub = nh.subscribe("/desired_path", 100, &ImageGrabber::GrabPath, &igb);
     //    igb.mpDensePathPub = nh.advertise<nav_msgs::Path>("/dense_path", 100);
     
     // TODO
@@ -355,6 +359,61 @@ void ImageGrabber::GrabOdom(const nav_msgs::Odometry::ConstPtr& msg) {
                 msg->pose.pose.orientation.y,
                 msg->pose.pose.orientation.z
                 );
+}
+
+geometry_msgs::PoseStamped convertToPoseStamped(const nav_msgs::Odometry& odometry) {
+    geometry_msgs::PoseStamped poseStamped;
+    poseStamped.header = odometry.header; 
+    poseStamped.pose = odometry.pose.pose; 
+    return poseStamped;
+}
+
+nav_msgs::Odometry convertToOdometry(const geometry_msgs::PoseStamped& poseStamped) {
+    nav_msgs::Odometry odom;
+    odom.header = poseStamped.header; 
+    odom.pose.pose = poseStamped.pose;
+    return odom;
+}
+
+void ImageGrabber::GrabFuse(const nav_msgs::Odometry::ConstPtr& msg) {
+        std::string target_frame = "left_camera_optical_frame";
+        geometry_msgs::PoseStamped pose_in, pose_out;
+        pose_in.header = msg->header; // Use the odometry message's header
+        pose_in.pose = msg->pose.pose; // Use the odometry message's pose
+
+        
+        try {
+            geometry_msgs::TransformStamped transformStamped = tf_buffer_.lookupTransform(target_frame, msg->child_frame_id, ros::Time(0), ros::Duration(1.0));
+            cout << "transformStamped " << transformStamped << endl;
+            tf2::doTransform(pose_in, pose_out, transformStamped); 
+
+            // Update the original odometry message with the transformed pose
+            nav_msgs::Odometry transformed_odom ; // Copy original message
+            transformed_odom.header.frame_id = target_frame; // Update frame_id to the new frame
+            transformed_odom.pose.pose = pose_out.pose; // Update the pose
+
+            timeStamp = msg->header.stamp.toSec();
+            cout << "x " << transformed_odom.pose.pose.position.x << endl;
+            cout << "y " << transformed_odom.pose.pose.position.y << endl;
+            cout << "z " << transformed_odom.pose.pose.position.z << endl;
+
+        mpSLAM->mpTracker->BufferingOdom(
+                    timeStamp,
+                    transformed_odom.pose.pose.position.x,
+                    transformed_odom.pose.pose.position.y,
+                    transformed_odom.pose.pose.position.z,
+                    transformed_odom.pose.pose.orientation.w,
+                    transformed_odom.pose.pose.orientation.x,
+                    transformed_odom.pose.pose.orientation.y,
+                    transformed_odom.pose.pose.orientation.z
+                    );
+
+
+
+    } catch (tf2::TransformException &ex) {
+        ROS_WARN("Failed to transform sensor fusion data: %s", ex.what());
+    }
+
 }
 
 void ImageGrabber::GrabPath(const nav_msgs::Path::ConstPtr& msg) {
