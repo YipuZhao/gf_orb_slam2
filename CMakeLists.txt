@@ -53,6 +53,7 @@ IF(NOT DEFINED ENABLE_CUDA_IN_OPENCV)
 ENDIF()
 message("Enable cuda support: " ${ENABLE_CUDA_IN_OPENCV})
 
+SET(CMAKE_CXX_STANDARD 14)
 
 # Check architecture
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
