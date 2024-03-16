@@ -48,6 +48,10 @@
 #include <sparse_stereo_msgs/TrackedPoint.h>
 #include <sparse_stereo_msgs/TrackedPointList.h>
 
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #define PUB_STEREO_TRACKED_FEATURES
 
 using namespace std;
@@ -60,7 +64,7 @@ using namespace std;
 class ImageGrabber
 {
 public:
-    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM){
+    ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM), tf_listener_(tf_buffer_){
 #ifdef MAP_PUBLISH
       mnMapRefreshCounter = 0;
 #endif
@@ -79,10 +83,16 @@ public:
     double timeStamp;
     cv::Mat Tmat;
 
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
+
     ros::Publisher mpCameraPosePublisher, mpCameraPoseInIMUPublisher;
     //    ros::Publisher mpDensePathPub;
 
     ros::Publisher trackedFeaturesPublisher;
+
+    geometry_msgs::TransformStamped cam_base_static_trans_, cam_odom_init_trans_, cam_imu_static_trans_;
+    bool cam_base_trans_set_ = false;
     
 #ifdef MAP_PUBLISH
     size_t mnMapRefreshCounter;
@@ -550,21 +560,57 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
 
     cv::Mat Rwc = pose.rowRange(0,3).colRange(0,3).t();
     cv::Mat twc = -Rwc*pose.rowRange(0,3).col(3);
-    tf::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
+    tf2::Matrix3x3 M(Rwc.at<float>(0,0),Rwc.at<float>(0,1),Rwc.at<float>(0,2),
 		    Rwc.at<float>(1,0),Rwc.at<float>(1,1),Rwc.at<float>(1,2),
 		    Rwc.at<float>(2,0),Rwc.at<float>(2,1),Rwc.at<float>(2,2));
-    tf::Vector3 V(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
+    tf2::Vector3 V(twc.at<float>(0), twc.at<float>(1), twc.at<float>(2));
 
-    tf::Transform tfTcw(M,V);
+    tf2::Transform tfTcw(M,V);
     geometry_msgs::Transform gmTwc;
-    tf::transformTFToMsg(tfTcw, gmTwc);
+    tf2::convert(tfTcw, gmTwc);
 	
     geometry_msgs::Pose camera_pose;
     camera_pose.position.x = gmTwc.translation.x;
     camera_pose.position.y = gmTwc.translation.y;
     camera_pose.position.z = gmTwc.translation.z;
     camera_pose.orientation = gmTwc.rotation;
+
+    tf2::Transform cam_odom_init_tf2, cam_base_static_tf2, cam_imu_static_tf2;
+
+    if(!cam_base_trans_set_)
+    {
+        cam_odom_init_trans_ = tf_buffer_.lookupTransform("odom", cv_ptrLeft->header.frame_id, ros::Time(0));
+        cam_base_static_trans_ = tf_buffer_.lookupTransform("base_footprint", cv_ptrLeft->header.frame_id, ros::Time(0));
+        cam_imu_static_trans_ = tf_buffer_.lookupTransform("gyro_link", cv_ptrLeft->header.frame_id, ros::Time(0));
+
+        tf2::Vector3 cam_odom_init_t(cam_odom_init_trans_.transform.translation.x, cam_odom_init_trans_.transform.translation.y, cam_odom_init_trans_.transform.translation.z);
+        tf2::Quaternion cam_odom_init_q(cam_odom_init_trans_.transform.rotation.x, cam_odom_init_trans_.transform.rotation.y, cam_odom_init_trans_.transform.rotation.z, cam_odom_init_trans_.transform.rotation.w);
+        cam_odom_init_tf2.setOrigin(cam_odom_init_t);
+        cam_odom_init_tf2.setRotation(cam_odom_init_q);
+
+        tf2::Vector3 cam_base_static_t(cam_base_static_trans_.transform.translation.x, cam_base_static_trans_.transform.translation.y, cam_base_static_trans_.transform.translation.z);
+        tf2::Quaternion cam_base_static_q(cam_base_static_trans_.transform.rotation.x, cam_base_static_trans_.transform.rotation.y, cam_base_static_trans_.transform.rotation.z, cam_base_static_trans_.transform.rotation.w);
+        cam_base_static_tf2.setOrigin(cam_base_static_t);
+        cam_base_static_tf2.setRotation(cam_base_static_q);
+
+        tf2::Vector3 cam_imu_static_t(cam_imu_static_trans_.transform.translation.x, cam_imu_static_trans_.transform.translation.y, cam_imu_static_trans_.transform.translation.z);
+        tf2::Quaternion cam_imu_static_q(cam_imu_static_trans_.transform.rotation.x, cam_imu_static_trans_.transform.rotation.y, cam_imu_static_trans_.transform.rotation.z, cam_imu_static_trans_.transform.rotation.w);
+        cam_imu_static_tf2.setOrigin(cam_imu_static_t);
+        cam_imu_static_tf2.setRotation(cam_imu_static_q);
+
+        cam_base_trans_set_ = true;
+    }
     
+    tf2::Transform camera_in_odom = cam_odom_init_tf2 * tfTcw * cam_base_static_tf2.inverse();
+    camera_pose.position.x = camera_in_odom.getOrigin().getX();
+    camera_pose.position.y = camera_in_odom.getOrigin().getY();
+    camera_pose.position.z = camera_in_odom.getOrigin().getZ();
+    camera_pose.orientation.x = camera_in_odom.getRotation().getX();
+    camera_pose.orientation.y = camera_in_odom.getRotation().getY();
+    camera_pose.orientation.z = camera_in_odom.getRotation().getZ();
+    camera_pose.orientation.w = camera_in_odom.getRotation().getW();
+
+    // This is only for visualization purpose now.
     geometry_msgs::PoseWithCovarianceStamped camera_odom;
     camera_odom.header.frame_id = "odom";
     camera_odom.header.stamp = cv_ptrLeft->header.stamp;
@@ -576,22 +622,22 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
 // by default, an additional transform is applied to make camera pose and body frame aligned
 // which is assumed in msf
 #ifdef INIT_WITH_ARUCHO
-    tf::Matrix3x3 Ric(   0, -1, 0,
+    tf2::Matrix3x3 Ric(   0, -1, 0,
 			    0, 0, -1,
 			    1, 0, 0);
 /*  tf::Matrix3x3 Ric(   0, 0, 1,
 			    -1, 0, 0,
 			    0, -1, 0);*/
-	tf::Transform tfTiw ( tf::Matrix3x3( tfTcw.getRotation() ) * Ric, tfTcw.getOrigin() );
+	tf2::Transform tfTiw ( tf2::Matrix3x3( tfTcw.getRotation() ) * Ric, tfTcw.getOrigin() );
 #else
-    tf::Matrix3x3 Ric( 0,  0,  1,
+    tf2::Matrix3x3 Ric( 0,  0,  1,
 			-1,  0,  0,
 			0,  -1,  0);
-      tf::Transform tfTiw ( Ric * tf::Matrix3x3( tfTcw.getRotation() ), Ric * tfTcw.getOrigin() );
+      tf2::Transform tfTiw ( Ric * tf2::Matrix3x3( tfTcw.getRotation() ), Ric * tfTcw.getOrigin() );
 #endif
 
     geometry_msgs::Transform gmTwi;
-	tf::transformTFToMsg(tfTiw, gmTwi);
+	tf2::convert(tfTiw, gmTwi);
 	
 	geometry_msgs::Pose camera_pose_in_imu;
 	camera_pose_in_imu.position.x = gmTwi.translation.x;
