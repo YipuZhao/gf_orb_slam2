@@ -414,6 +414,15 @@ ${catkin_LIBRARIES}
 ${PROJECT_NAME}
 )
 
+# Node for stereo camera with features published
+add_executable(RGBDFeatures Examples/ROS/GF_ORB_SLAM2/src/ros_rgbd_features_pub.cc)
+
+target_link_libraries(RGBDFeatures
+${LIBS}
+${catkin_LIBRARIES}
+${PROJECT_NAME}
+)
+
 # build non-ROS node
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Stereo)
 add_executable(stereo_euroc Examples/Stereo/stereo_euroc.cc)

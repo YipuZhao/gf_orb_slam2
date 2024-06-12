@@ -7,6 +7,7 @@ Examples/ROS/GF_ORB_SLAM2/CMakeLists.txt.user
 Examples/ROS/GF_ORB_SLAM2/Mono
 Examples/ROS/GF_ORB_SLAM2/MonoAR
 Examples/ROS/GF_ORB_SLAM2/RGBD
+Examples/ROS/GF_ORB_SLAM2/RGBDFeatures
 Examples/ROS/GF_ORB_SLAM2/Stereo
 Examples/ROS/GF_ORB_SLAM2/StereoFeatures
 Examples/ROS/GF_ORB_SLAM2/build/
