@@ -161,8 +161,12 @@ int main(int argc, char **argv)
     igb.mpCameraPosePublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose", 100);
     igb.mpCameraPoseInIMUPublisher = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("ORB_SLAM/camera_pose_in_imu", 100);
 
-#ifdef PUB_STEREO_TRACKED_FEATURES
+#ifdef PUB_TRACKED_FEATURES
     igb.trackedFeaturesPublisher = nh.advertise<sparse_stereo_msgs::TrackedPointList>("ORB_SLAM/tracked_features", 100);
+#endif
+
+#ifdef FRAME_WITH_INFO_PUBLISH
+    igb.mpFrameWithInfoPublisher = nh.advertise<sensor_msgs::Image>("ORB_SLAM/frame_with_info", 100);
 #endif
 
 #ifdef MAP_PUBLISH
@@ -302,6 +306,52 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB, const sens
     // ROS_INFO("ORB-SLAM Tracking Latency: %.03f sec", ros::Time::now().toSec() - cv_ptrLeft->header.stamp.toSec());
     // ROS_INFO("Image Transmision Latency: %.03f sec; Total Tracking Latency: %.03f sec", latency_trans, latency_total);
     ROS_INFO("Pose Tracking Latency: %.03f sec", latency_total - latency_trans);
+
+    // Obtain the tracked points from RGBD
+    std::vector<cv::KeyPoint> stereo_pt_l;
+    std::vector<float> var_pt_l;
+    std::vector<float> stereo_pt_depth;
+    std::vector<long unsigned int> stereo_pt_id;
+
+    sparse_stereo_msgs::TrackedPointList tracked_points;
+    tracked_points.header = msgRGB->header;
+
+    // Use tracked map points and keypoints
+    std::vector<ORB_SLAM2::MapPoint *> stereo_map_pts = mpSLAM->GetTrackedMapPoints();
+    stereo_pt_l = mpSLAM->GetTrackedKeyPointsUn();
+    var_pt_l = mpSLAM->mpTracker->mCurrentFrame.mvLevelSigma2;
+
+    tracked_points.tracked_list.clear();
+    for(size_t i = 0; i < stereo_map_pts.size(); i++)
+    {
+        ORB_SLAM2::MapPoint* map_pt = stereo_map_pts[i];
+        if(map_pt != NULL && !map_pt->isBad())
+        {
+            cv::Mat Pw = map_pt->GetWorldPos(), Pc;
+            if (mpSLAM->mpTracker->mCurrentFrame.WorldToCameraPoint(Pw, Pc) == true && Pc.at<float>(2) < 100) 
+            {
+                sparse_stereo_msgs::TrackedPoint tracked_pt;
+                tracked_pt.header = msgRGB->header;
+
+                tracked_pt.depth = Pc.at<float>(2);
+                tracked_pt.id = map_pt->mnId;
+                tracked_pt.u_l = stereo_pt_l[i].pt.x;
+                tracked_pt.v_l = stereo_pt_l[i].pt.y;
+
+                tracked_pt.var = var_pt_l[stereo_pt_l[i].octave];
+
+                tracked_pt.pt_camera.x = Pc.at<float>(0);
+                tracked_pt.pt_camera.y = Pc.at<float>(1);
+                tracked_pt.pt_camera.z = Pc.at<float>(2);
+                
+                tracked_points.tracked_list.push_back(tracked_pt);
+            }
+        }
+    }
+
+    trackedFeaturesPublisher.publish(tracked_points);
+
+    ROS_INFO_STREAM("Tracked [ " << tracked_points.tracked_list.size() <<" ] features.");
 
     /*
     // global left handed coordinate system 

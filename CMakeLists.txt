@@ -280,6 +280,7 @@ else()
         set(SRCS ${SRCS} src/FAST_NEON.cc)
     ENDIF()
     add_library(${PROJECT_NAME} ${ORB_LIB_TYPE} ${SRCS})
+    add_library(${PROJECT_NAME}_rgbd ${ORB_LIB_TYPE} ${SRCS})
 endif()
 
 # SLAM ++ header files
@@ -342,7 +343,17 @@ if(ENABLE_CUDA_IN_OPENCV)
         nvToolsExt
         ${SLAM_PLUS_PLUS_LIBRARIES})
 else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE DELAYED_STEREO_MATCHING ALTER_STEREO_MATCHING)
     target_link_libraries(${PROJECT_NAME}
+        GL
+        glut
+        GLU
+        ${LIBS}
+        ${catkin_LIBRARIES}
+        ${SLAM_PLUS_PLUS_LIBRARIES})
+
+    # target_compile_definitions(${PROJECT_NAME}_rgbd PRIVATE -UDELAYED_STEREO_MATCHING -UALTER_STEREO_MATCHING)
+    target_link_libraries(${PROJECT_NAME}_rgbd
         GL
         glut
         GLU
@@ -411,7 +422,7 @@ MESSAGE("catkin_LIBRARIES: " ${catkin_LIBRARIES})
 target_link_libraries(RGBD
 ${LIBS}
 ${catkin_LIBRARIES}
-${PROJECT_NAME}
+${PROJECT_NAME}_rgbd
 )
 
 # Node for stereo camera with features published
@@ -420,7 +431,7 @@ add_executable(RGBDFeatures Examples/ROS/GF_ORB_SLAM2/src/ros_rgbd_features_pub.
 target_link_libraries(RGBDFeatures
 ${LIBS}
 ${catkin_LIBRARIES}
-${PROJECT_NAME}
+${PROJECT_NAME}_rgbd
 )
 
 # build non-ROS node

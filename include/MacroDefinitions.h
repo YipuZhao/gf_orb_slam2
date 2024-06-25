@@ -57,9 +57,9 @@
 // NOTE
 // as an alternative of stereo pipeline, undistort the keypoints and perform stereo matching
 // no image recitification is required, nor does the subpixel stereo refine is used
-#define ALTER_STEREO_MATCHING
+// #define ALTER_STEREO_MATCHING
 // only uncomment it for stereo pipeline
-#define DELAYED_STEREO_MATCHING
+// #define DELAYED_STEREO_MATCHING
 
 #ifdef GF_GG_MODE
 
