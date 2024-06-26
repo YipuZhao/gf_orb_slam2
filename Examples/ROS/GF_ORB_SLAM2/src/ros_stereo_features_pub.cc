@@ -93,6 +93,7 @@ public:
     ros::Publisher trackedFeaturesPublisher;
 
     geometry_msgs::TransformStamped cam_base_static_trans_, cam_odom_init_trans_, cam_imu_static_trans_;
+    tf2::Transform cam_odom_init_tf2_, cam_base_static_tf2_, cam_imu_static_tf2_;
     bool cam_base_trans_set_ = false;
     
 #ifdef MAP_PUBLISH
@@ -576,8 +577,6 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
     camera_pose.position.z = gmTwc.translation.z;
     camera_pose.orientation = gmTwc.rotation;
 
-    tf2::Transform cam_odom_init_tf2, cam_base_static_tf2, cam_imu_static_tf2;
-
     if(!cam_base_trans_set_)
     {
         cam_odom_init_trans_ = tf_buffer_.lookupTransform("odom", cv_ptrLeft->header.frame_id, ros::Time(0));
@@ -586,23 +585,23 @@ void ImageGrabber::GrabStereo(const sensor_msgs::ImageConstPtr& msgLeft,const se
 
         tf2::Vector3 cam_odom_init_t(cam_odom_init_trans_.transform.translation.x, cam_odom_init_trans_.transform.translation.y, cam_odom_init_trans_.transform.translation.z);
         tf2::Quaternion cam_odom_init_q(cam_odom_init_trans_.transform.rotation.x, cam_odom_init_trans_.transform.rotation.y, cam_odom_init_trans_.transform.rotation.z, cam_odom_init_trans_.transform.rotation.w);
-        cam_odom_init_tf2.setOrigin(cam_odom_init_t);
-        cam_odom_init_tf2.setRotation(cam_odom_init_q);
+        cam_odom_init_tf2_.setOrigin(cam_odom_init_t);
+        cam_odom_init_tf2_.setRotation(cam_odom_init_q);
 
         tf2::Vector3 cam_base_static_t(cam_base_static_trans_.transform.translation.x, cam_base_static_trans_.transform.translation.y, cam_base_static_trans_.transform.translation.z);
         tf2::Quaternion cam_base_static_q(cam_base_static_trans_.transform.rotation.x, cam_base_static_trans_.transform.rotation.y, cam_base_static_trans_.transform.rotation.z, cam_base_static_trans_.transform.rotation.w);
-        cam_base_static_tf2.setOrigin(cam_base_static_t);
-        cam_base_static_tf2.setRotation(cam_base_static_q);
+        cam_base_static_tf2_.setOrigin(cam_base_static_t);
+        cam_base_static_tf2_.setRotation(cam_base_static_q);
 
         tf2::Vector3 cam_imu_static_t(cam_imu_static_trans_.transform.translation.x, cam_imu_static_trans_.transform.translation.y, cam_imu_static_trans_.transform.translation.z);
         tf2::Quaternion cam_imu_static_q(cam_imu_static_trans_.transform.rotation.x, cam_imu_static_trans_.transform.rotation.y, cam_imu_static_trans_.transform.rotation.z, cam_imu_static_trans_.transform.rotation.w);
-        cam_imu_static_tf2.setOrigin(cam_imu_static_t);
-        cam_imu_static_tf2.setRotation(cam_imu_static_q);
+        cam_imu_static_tf2_.setOrigin(cam_imu_static_t);
+        cam_imu_static_tf2_.setRotation(cam_imu_static_q);
 
         cam_base_trans_set_ = true;
     }
     
-    tf2::Transform camera_in_odom = cam_odom_init_tf2 * tfTcw * cam_base_static_tf2.inverse();
+    tf2::Transform camera_in_odom = cam_odom_init_tf2_ * tfTcw * cam_base_static_tf2_.inverse();
     camera_pose.position.x = camera_in_odom.getOrigin().getX();
     camera_pose.position.y = camera_in_odom.getOrigin().getY();
     camera_pose.position.z = camera_in_odom.getOrigin().getZ();
