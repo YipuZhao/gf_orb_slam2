@@ -559,24 +559,20 @@ void System::SaveMappingLog(const string &filename) {
 
     cout << endl << "Saving mapping log to " << filename << " ..." << endl;
 
-    ofstream fBATimeLog;
+    ofstream fBATimeLog, fGGTimeLog;
     fBATimeLog.open(filename.c_str());
     fBATimeLog << fixed;
     fBATimeLog << "#frame_time_stamp time_proc_new_keyframe time_culling time_tri_new_map_point time_srh_more_neighbor time_local_BA num_fixed_KF num_free_KF num_Point" << std::endl;
+    
+    {
+        size_t dotPos = filename.find_last_of('.');
+        std::string modifiedFilename = filename.substr(0, dotPos) + "_good_graph" + filename.substr(dotPos);
+        fGGTimeLog.open(modifiedFilename.c_str());
+        fGGTimeLog << fixed;
+        fGGTimeLog << "# timestamp gg_prediction gg_insert_vertex gg_jacobian gg_rnd_query gg_schur gg_permute gg_cholesky gg_postproc gg_optimization gg_lba_budget gg_num_fixed_KF gg_free_KF gg_num_Point" << std::endl;
+    }
     for(size_t i=0; i<mpLocalMapper->mvBATimeLog.size(); i++)
     {
-        //        fBATimeLog << setprecision(6)
-        //                   << mpLocalMapper->mBATimeLog[i].frame_time_stamp << " "
-        //                   << mpLocalMapper->mBATimeLog[i].time_proc_new_keyframe << " "
-        //                   << mpLocalMapper->mBATimeLog[i].time_culling << " "
-        //                   << mpLocalMapper->mBATimeLog[i].time_tri_new_map_point << " "
-        //                   << mpLocalMapper->mBATimeLog[i].time_srh_more_neighbor << " "
-        //                   << mpLocalMapper->mBATimeLog[i].time_local_BA << " "
-        //                   << setprecision(0)
-        //                   << mpLocalMapper->mBATimeLog[i].num_fixed_KF << " "
-        //                   << mpLocalMapper->mBATimeLog[i].num_free_KF << " "
-        //                   << mpLocalMapper->mBATimeLog[i].num_Point << std::endl;
-
         fBATimeLog << setprecision(6)
                    << mpLocalMapper->mvBATimeLog[i].frame_time_stamp << " "
                    << mpLocalMapper->mvBATimeLog[i].time_proc_new_keyframe << " "
@@ -584,6 +580,13 @@ void System::SaveMappingLog(const string &filename) {
                    << mpLocalMapper->mvBATimeLog[i].time_tri_new_map_point << " "
                    << mpLocalMapper->mvBATimeLog[i].time_srh_more_neighbor << " "
                    << mpLocalMapper->mvBATimeLog[i].time_local_BA << " "
+                   << setprecision(0)
+                   << mpLocalMapper->mvBATimeLog[i].num_fixed_KF << " "
+                   << mpLocalMapper->mvBATimeLog[i].num_free_KF << " "
+                   << mpLocalMapper->mvBATimeLog[i].num_Point << std::endl;
+
+        fGGTimeLog << setprecision(6)
+                   << mpLocalMapper->mvBATimeLog[i].frame_time_stamp << " "
                       //
                    << mpLocalMapper->mvBATimeLog[i].time_gg_prediction << " "
                    << mpLocalMapper->mvBATimeLog[i].time_gg_insert_vertex << " "
@@ -597,11 +600,12 @@ void System::SaveMappingLog(const string &filename) {
                       // add 1 more column for budget
                    << mpLocalMapper->mvBATimeLog[i].time_gg_lba_budget << " "
                    << setprecision(0)
-                   << mpLocalMapper->mvBATimeLog[i].num_fixed_KF << " "
-                   << mpLocalMapper->mvBATimeLog[i].num_free_KF << " "
-                   << mpLocalMapper->mvBATimeLog[i].num_Point << std::endl;
+                   << mpLocalMapper->mvBATimeLog[i].gg_num_fixed_KF << " "
+                   << mpLocalMapper->mvBATimeLog[i].gg_num_free_KF << " "
+                   << mpLocalMapper->mvBATimeLog[i].gg_num_Point << std::endl;
     }
     fBATimeLog.close();
+    fGGTimeLog.close();
 }
 
 void System::SaveTrajectoryTUM(const string &filename)

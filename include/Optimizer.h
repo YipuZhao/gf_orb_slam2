@@ -74,11 +74,9 @@ public:
 
 #ifdef ENABLE_GOOD_GRAPH
     void static LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap,
-                                      size_t &num_fixed_KF, size_t &num_free_KF, size_t &num_Point,
                                       MappingLog & time_log, BudgetPredictParam * param_ = NULL);
 #else
     void static LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap,
-                                      size_t &num_fixed_KF, size_t &num_free_KF, size_t &num_Point,
                                       MappingLog & time_log);
 #endif
     //
