@@ -199,11 +199,9 @@ void LocalMapping::Run()
                     // Local BA
 #ifdef ENABLE_ANTICIPATION_IN_BUDGET
                     Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame, &mbAbortBA, mpMap,
-                                                     logCurrentKeyFrame.num_fixed_KF, logCurrentKeyFrame.num_free_KF, logCurrentKeyFrame.num_Point,
                                                      logCurrentKeyFrame, &mParam);
 #else
                     Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame, &mbAbortBA, mpMap,
-                                                     logCurrentKeyFrame.num_fixed_KF, logCurrentKeyFrame.num_free_KF, logCurrentKeyFrame.num_Point,
                                                      logCurrentKeyFrame);
 #endif
 

@@ -616,7 +616,6 @@ int Optimizer::estimateKFNum(const double & coe_a, const double & coe_b,
 
 
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap,
-                                      size_t &num_fixed_KF, size_t &num_free_KF, size_t &num_Point,
                                       MappingLog & time_log, BudgetPredictParam * param_)
 {
 #ifdef GOOD_GRAPH_TIME_LOGGING
@@ -725,7 +724,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         }
     }
     //
-    num_free_KF = lLocalKeyFrames.size();
+    time_log.num_free_KF = lLocalKeyFrames.size();
 
     // Local MapPoints seen in Local KeyFrames
     list<MapPoint *> lLocalMapPoints;
@@ -760,7 +759,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         }
     }
     //
-    num_Point = lLocalMapPoints.size();
+    time_log.num_Point = lLocalMapPoints.size();
 
     // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
     list<KeyFrame *> lFixedCameras;
@@ -797,7 +796,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         }
     }
 
-    num_fixed_KF = lFixedCameras.size();
+    time_log.num_fixed_KF = lFixedCameras.size();
 
     // insert edges
     size_t root_matching_num = 0;
@@ -935,7 +934,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
     if (pKF->mNumVisibleMpt > 0)
         visiblePtNum.push_back(pKF->mNumVisibleMpt);
     else
-        visiblePtNum.push_back(num_Point);
+        visiblePtNum.push_back(time_log.num_Point);
     //
     size_t vkf_cnt = 0;
     for (auto & vfit : virtualKFs)
@@ -1128,10 +1127,10 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         std::cout << "vidx = " << vidx << "; budgetLBA (ms) = " << budgetLBA * 1000.0 << "; szGoodGraph = " << szGoodGraph << std::endl;
 #endif
     }
-    if (szGoodGraph < num_free_KF + VIRTUAL_FRAME_NUM) {
+    if (szGoodGraph < time_log.num_free_KF + VIRTUAL_FRAME_NUM) {
 #else
     // simply fix the size of good graph
-    if (num_free_KF > GOOD_GRAPH_KF_THRES) {
+    if (time_log.num_free_KF > GOOD_GRAPH_KF_THRES) {
 #ifdef ENABLE_ANTICIPATION_IN_GRAPH
         size_t szGoodGraph = GOOD_GRAPH_KF_THRES + VIRTUAL_FRAME_NUM; // num_free_KF/2;
 #else
@@ -1184,7 +1183,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
             //            hSLAMID2KF[iter]->mnBALocalForKF = pKF->mnId;
             //            lLocalKeyFrames.push_back(hSLAMID2KF[iter]);
         }
-        num_free_KF = lLocalKeyFrames.size();
+        time_log.gg_num_free_KF = lLocalKeyFrames.size();
 
         // Local MapPoints seen in Local KeyFrames
         lLocalMapPoints.clear();
@@ -1208,7 +1207,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
             }
         }
         //
-        num_Point = lLocalMapPoints.size();
+        time_log.gg_num_Point = lLocalMapPoints.size();
 
         // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
         lFixedCameras.clear();
@@ -1232,7 +1231,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
             }
         }
         //
-        num_fixed_KF = lFixedCameras.size();
+        time_log.gg_num_fixed_KF = lFixedCameras.size();
 
         // printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
 
@@ -1546,8 +1545,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
 #else
 //
 void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap,
-                                      size_t &num_fixed_KF, size_t &num_free_KF,
-                                      size_t &num_Point, MappingLog & time_log)
+                                      MappingLog & time_log)
 {
 #ifdef GOOD_GRAPH_TIME_LOGGING
     time_log.setGGTimerZero();
@@ -1573,27 +1571,27 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
     }
 
     //
-    num_free_KF = lLocalKeyFrames.size();
+    time_log.num_free_KF = lLocalKeyFrames.size();
 
 #ifdef ENABLE_SLIDING_WINDOW_FILTER
     // sort KF according to timestamp; keep recent-N ones
-    if (num_free_KF > GOOD_GRAPH_KF_THRES) {
+    if (time_log.num_free_KF > GOOD_GRAPH_KF_THRES) {
         //        sort(lLocalKeyFrames.begin(), lLocalKeyFrames.end(), KeyFrame::timeStampComp);
         lLocalKeyFrames.sort(KeyFrame::timeStampComp);
-        while (num_free_KF > GOOD_GRAPH_KF_THRES) {
+        while (time_log.num_free_KF > GOOD_GRAPH_KF_THRES) {
             (*lLocalKeyFrames.begin())->mnBALocalForKF = pKF->mnId - 1;
             lLocalKeyFrames.pop_front();
-            num_free_KF --;
+            time_log.num_free_KF --;
         }
         assert(lLocalKeyFrames.size() == GOOD_GRAPH_KF_THRES && (lLocalKeyFrames.back())->mnId == pKF->mnId);
     }
 #elif defined ENABLE_COVIS_GRAPH
     // sort KF accoding to co-vis weight; keep top-N ones
-    if (num_free_KF > GOOD_GRAPH_KF_THRES) {
-        while (num_free_KF > GOOD_GRAPH_KF_THRES) {
+    if (time_log.num_free_KF > GOOD_GRAPH_KF_THRES) {
+        while (time_log.num_free_KF > GOOD_GRAPH_KF_THRES) {
             lLocalKeyFrames.back()->mnBALocalForKF = pKF->mnId - 1;
             lLocalKeyFrames.pop_back();
-            num_free_KF --;
+            time_log.num_free_KF --;
         }
         assert(lLocalKeyFrames.size() == GOOD_GRAPH_KF_THRES && (*lLocalKeyFrames.begin())->mnId == pKF->mnId);
     }
@@ -1619,7 +1617,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         }
     }
     //
-    num_Point = lLocalMapPoints.size();
+    time_log.num_Point = lLocalMapPoints.size();
 
     // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
     list<KeyFrame *> lFixedCameras;
@@ -1647,7 +1645,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
         }
     }
     //
-    num_fixed_KF = lFixedCameras.size();
+    time_log.num_fixed_KF = lFixedCameras.size();
 
     // printf("subset num. of camera poses = %d, lmk = %d, fixed poses = %d\n", num_free_KF, num_Point, num_fixed_KF);
 

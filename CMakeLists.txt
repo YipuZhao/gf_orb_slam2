@@ -340,6 +340,7 @@ else()
         ${catkin_LIBRARIES}
         ${SLAM_PLUS_PLUS_LIBRARIES})
 endif()
+target_compile_options(${PROJECT_NAME} PRIVATE "-w")
 
 
 # Build examples

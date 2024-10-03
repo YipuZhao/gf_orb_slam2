@@ -17,33 +17,34 @@ import subprocess
 import time
 import signal
 
-DATA_ROOT = "/mnt/DATA/Datasets/EuRoC/BagFiles"
+DATA_ROOT = "/mnt/DATA/datasets/euroc/rosbags"
 SeqNameList = [
     "MH_01_easy",
     "MH_02_easy",
     "MH_03_medium",
     "MH_04_difficult",
     "MH_05_difficult",
-    "V1_01_easy",
-    "V1_02_medium",
-    "V1_03_difficult",
-    "V2_01_easy",
-    "V2_02_medium",
-    "V2_03_difficult",
+    # "V1_01_easy",
+    # "V1_02_medium",
+    # "V1_03_difficult",
+    # "V2_01_easy",
+    # "V2_02_medium",
+    # "V2_03_difficult",
 ]
 
-Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG/")
+# Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG/")
+Result_root = "/mnt/DATA/experiments/good_graph/12700k/gfgg/"
 
 # Number_GF_List = [400, 800, 1000, 1500]
-Number_GF_List = [300, 400, 500]
-NumRepeating = 5  # 10 # 20 #  5 #
+Number_GF_List = [400] #, 400, 500]
+NumRepeating = 1  # 10 # 20 #  5 #
 SpeedPool = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
 SleepTime = 1  # 10 # 25
 EnableViewer = 0
 EnableLogging = 1
 
-GF_ORB_SLAM2_PATH = os.path.join(os.environ["HOME"], "roboslam_ws/src/gf_orb_slam2")
-ConfigPath = os.path.join(os.environ["HOME"], "roboslam_ws/src/ORB_Data")
+GF_ORB_SLAM2_PATH = os.path.join(os.environ["HOME"], "closedloop_ws/src/gf_orb_slam2")
+ConfigPath = os.path.join(os.environ["HOME"], "closedloop_ws/src/ORB_Data")
 
 # ----------------------------------------------------------------------------------------------------------------------
 class bcolors:

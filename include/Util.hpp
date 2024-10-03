@@ -335,6 +335,10 @@ public:
         num_fixed_KF = 0;
         num_free_KF = 0;
         num_Point = 0;
+
+        gg_num_fixed_KF = 0;
+        gg_num_free_KF = 0;
+        gg_num_Point = 0;
     }
 
     double frame_time_stamp;
@@ -362,8 +366,11 @@ public:
     size_t num_fixed_KF;
     size_t num_free_KF;
     size_t num_Point;
-};
 
+    size_t gg_num_fixed_KF = 0;
+    size_t gg_num_free_KF = 0;
+    size_t gg_num_Point = 0;
+};
 
 class FramePose {
 public:
