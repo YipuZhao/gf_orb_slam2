@@ -39,6 +39,8 @@ Following **additional features** are also included for practical applications:
 
 ## Build & Run
 
+[Note]: The build requires that `Eigen` and related libraries are present in the /usr/local, however in later versions of ubuntu>18.04, it is located in /usr/local/eigen3. Be sure to make proper adjustments to avoid build issues
+
 To build GF-ORB-SLAM2, first clone the repo to your catkin workspace
 
     cd ~/catkin_ws/src && git clone https://github.com/ivalab/gf_orb_slam2.git
