@@ -6,7 +6,7 @@
 
 Create a **new** `ros workspace`, e.g. `catkin_ws`, clone `gf_orb_slam2`
 
-    cd ~/catkin_ws/src && git clone https://github.com/ivalab/gf_orb_slam2.git -b feature/ubuntu20.04
+    cd ~/catkin_ws/src && git clone https://github.com/ivalab/gf_orb_slam2.git -b noetic/catkin_traj_servo
 
 
 as well as the config files
