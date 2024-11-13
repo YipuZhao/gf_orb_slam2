@@ -67,9 +67,9 @@
     #define VIRTUAL_FRAME_NUM       1 // 2 //
     // number of regular frames between virtual KF
     // for EuRoC (20 fps)
-    // #define VIRTUAL_FRAME_STEP      10 // 5 //
+    #define VIRTUAL_FRAME_STEP      10 // 5 //
     // for Gazebo (30 fps)
-    #define VIRTUAL_FRAME_STEP      15
+    // #define VIRTUAL_FRAME_STEP      15
 
     // #define ENABLE_PERTURBATION_TO_ODOM
     // level of gaussian noise added to ground truth anticipation

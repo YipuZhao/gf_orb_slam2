@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Stereo");
     ros::start();
 
-    if(argc != 10)
+    if(argc < 10)
     {
         cerr << endl << "Usage: rosrun gf_orb_slam2 Stereo path_to_vocabulary path_to_settings budget_per_frame "
              << " do_rectify do_viz "
@@ -174,7 +174,12 @@ int main(int argc, char **argv)
 
     // convert budget input from ms to sec
     // SLAM.SetBudgetPerFrame(FLAGS_budget_per_frame*1e-3);
-    
+#ifdef ENABLE_ANTICIPATION_IN_GRAPH || defined PRED_WITH_ODOM
+    if (argc > 10)
+    {
+        SLAM.LoadOdomPlanned(argv[10]);
+    }
+#endif
 
 #ifdef LOGGING_KF_LIST
     std::string fNameRealTimeBA = std::string(argv[8]) + "_Log_BA.txt";

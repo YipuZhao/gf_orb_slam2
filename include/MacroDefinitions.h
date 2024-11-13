@@ -17,7 +17,7 @@
 
 //######################### MODE definition. #################################//
 
-// {GF_GG_MODE, GF_CV_MODE, CF_SW_MODE, GF_MODE, ORB2_BASELINE}
+// {GF_GG_MODE, GF_CV_MODE, CF_SW_MODE, GF_MODE, ORB2_BASELINE, GF_GG_ANTIC_MODE}
 #define GF_GG_MODE
 
 //########################### Relocalization. ################################//
@@ -67,10 +67,10 @@
     #define ENABLE_GOOD_GRAPH
 
     //--------------- Frame.h ------------------//
-    
     // For anticipation in good graph, it uses future camera pose to predict
     // visible map points, thus determines the local BA time budget
     #define ENABLE_ANTICIPATION_IN_GRAPH
+    #define ENABLE_PERTURBATION_TO_ODOM  // EuRoC Benchmark
 
 #elif defined GF_MODE
 

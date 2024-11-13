@@ -24,27 +24,37 @@ SeqNameList = [
     "MH_03_medium",
     "MH_04_difficult",
     "MH_05_difficult",
-    # "V1_01_easy",
-    # "V1_02_medium",
-    # "V1_03_difficult",
-    # "V2_01_easy",
-    # "V2_02_medium",
-    # "V2_03_difficult",
+    "V1_01_easy",
+    "V1_02_medium",
+    "V1_03_difficult",
+    "V2_01_easy",
+    "V2_02_medium",
+    "V2_03_difficult",
 ]
 
+MODE_AND_FEATURES = {
+    "orb2": [1600],
+    "gf": [200, 400],
+    "gfgg": [200, 400],
+}
+
+method_name = "gfgg"
+
 # Result_root = os.path.join(os.environ["SLAM_RESULT"], "gf_orb_slam2/EuRoC/GFGG/")
-Result_root = "/mnt/DATA/experiments/good_graph/12700k/gfgg/"
+Result_root = f"/mnt/DATA/experiments/openloop/euroc/{method_name}/opencv"
+# Result_root = "/mnt/DATA/experiments/good_graph/12700k/orb2/"
 
 # Number_GF_List = [400, 800, 1000, 1500]
-Number_GF_List = [400] #, 400, 500]
-NumRepeating = 1  # 10 # 20 #  5 #
-SpeedPool = [1.0]  # , 2.0, 3.0, 4.0, 5.0]  # x
+Number_GF_List = MODE_AND_FEATURES[method_name]  # , 400, 500]
+NumRepeating = 5  # 10 # 20 #  5 #
+SpeedPool = [1.0, 2.0, 3.0, 4.0, 5.0]  # x
 SleepTime = 1  # 10 # 25
 EnableViewer = 0
 EnableLogging = 1
 
 GF_ORB_SLAM2_PATH = os.path.join(os.environ["HOME"], "closedloop_ws/src/gf_orb_slam2")
 ConfigPath = os.path.join(os.environ["HOME"], "closedloop_ws/src/ORB_Data")
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 class bcolors:
@@ -96,6 +106,7 @@ for speed in SpeedPool:
                 file_rosbag = os.path.join(DATA_ROOT, SeqName + ".bag")
                 file_timestamp = os.path.join(file_data, "times.txt")
                 file_node = os.path.join(GF_ORB_SLAM2_PATH, "Examples/Stereo/stereo_euroc")
+                file_pose = os.path.join(ConfigPath, "EuRoC_POSE_GT", SeqName + "_cam0.txt")
 
                 # compose cmd
                 cmd_slam = str(
@@ -115,6 +126,8 @@ for speed in SpeedPool:
                     + file_traj
                     + " "
                     + file_dummy_map
+                    + " "
+                    + file_pose
                     + " "
                     + file_log
                 )

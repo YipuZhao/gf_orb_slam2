@@ -1051,10 +1051,10 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap
 #endif
         size_t vidx = 0;
         // EuRoC & FPV
-        // size_t minVisibleNum = ceil(double(pKF->N) * 0.30f / 0.35f);
+        size_t minVisibleNum = ceil(double(pKF->N) * 0.30f / 0.35f);
         // Gazebo
         // size_t minVisibleNum = ceil(double(pKF->N) * 0.20f);
-        size_t minVisibleNum = ceil(double(pKF->N) * 0.40f);
+        // size_t minVisibleNum = ceil(double(pKF->N) * 0.40f);
 #ifdef DEBUG_VERBOSE
         cout << "visiblePtNum: " ;
 #endif
